@@ -12,6 +12,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('Adressen pagina geladen');
+	// ===== ADRESSEN FUNCTIES =====
+
+console.log('1. adressen.js start');
+console.log('2. window.supabase op dit moment:', window.supabase);
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    console.log('3. DOMContentLoaded event');
+    console.log('4. window.supabase in event:', window.supabase);
+    
+    if (!window.supabase) {
+        console.error('5. Supabase niet beschikbaar!');
+        const adressenLijst = document.getElementById('adressenLijst');
+        if (adressenLijst) {
+            adressenLijst.innerHTML = '<p class="error">Supabase is niet beschikbaar. Probeer de pagina te vernieuwen.</p>';
+        }
+        return;
+    }
+    
+    console.log('6. Supabase is beschikbaar!');
+    // ... rest van de code
     
     const adressenLijst = document.getElementById('adressenLijst');
     const addAddressBtn = document.getElementById('addAddressBtn');
