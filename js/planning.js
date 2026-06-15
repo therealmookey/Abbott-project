@@ -1,4 +1,6 @@
-// ===== PLANNING FUNCTIES =====
+// ===== PLANNING FUNCTIES (MET TONNEN) =====
+
+console.log('planning.js geladen');
 
 document.addEventListener('DOMContentLoaded', function() {
     
@@ -15,40 +17,63 @@ document.addEventListener('DOMContentLoaded', function() {
     const savePlanningBtn = document.getElementById('savePlanningBtn');
     const closePlanningPopup = document.getElementById('closePlanningPopup');
     const planningPopupTitle = document.getElementById('planningPopupTitle');
-    const instellingSelect = document.getElementById('instellingSelect');
+    const adresSelect = document.getElementById('adresSelect');
+    const typeSelect = document.getElementById('typeSelect');
+    const ophalingVelden = document.getElementById('ophalingVelden');
+    const plaatsingVelden = document.getElementById('plaatsingVelden');
     const statusFilter = document.getElementById('statusFilter');
+    const typeFilter = document.getElementById('typeFilter');
     const datumFilter = document.getElementById('datumFilter');
     const filterBtn = document.getElementById('filterBtn');
     
     let currentPlanningId = null;
-    let instellingen = [];
+    let adressen = [];
     
-    async function laadInstellingen() {
+    // Laad adressen voor dropdown
+    async function laadAdressen() {
         const { data, error } = await window.supabase
             .from('adressen')
-            .select('id, instelling_naam')
+            .select('id, instelling_naam, straat, postcode, plaats')
             .order('instelling_naam');
         
         if (error) {
-            console.error('Fout bij laden instellingen:', error);
+            console.error('Fout bij laden adressen:', error);
             return [];
         }
-        instellingen = data || [];
-        return instellingen;
+        adressen = data || [];
+        return adressen;
     }
     
-    function vulInstellingDropdown() {
-        if (!instellingSelect) return;
+    function vulAdresDropdown() {
+        if (!adresSelect) return;
         
-        instellingSelect.innerHTML = '<option value="">Kies een instelling...</option>';
-        instellingen.forEach(inst => {
+        adresSelect.innerHTML = '<option value="">Kies een adres...</option>';
+        adressen.forEach(adres => {
             const option = document.createElement('option');
-            option.value = inst.id;
-            option.textContent = inst.instelling_naam;
-            instellingSelect.appendChild(option);
+            option.value = adres.id;
+            option.textContent = `${adres.instelling_naam} - ${adres.straat}, ${adres.plaats}`;
+            adresSelect.appendChild(option);
         });
     }
     
+    // Toon/verberg velden op basis van type
+    if (typeSelect) {
+        typeSelect.addEventListener('change', (e) => {
+            const type = e.target.value;
+            if (type === 'ophaling') {
+                ophalingVelden.style.display = 'block';
+                plaatsingVelden.style.display = 'none';
+            } else if (type === 'plaatsing') {
+                ophalingVelden.style.display = 'none';
+                plaatsingVelden.style.display = 'block';
+            } else {
+                ophalingVelden.style.display = 'none';
+                plaatsingVelden.style.display = 'none';
+            }
+        });
+    }
+    
+    // Laad planningen
     async function laadPlanningen() {
         if (!planningLijst) return;
         
@@ -58,9 +83,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .from('planningen')
             .select(`
                 *,
-                instelling:instelling_id (instelling_naam, straat, plaats)
+                adres:adres_id (id, instelling_naam, straat, postcode, plaats)
             `)
             .order('datum', { ascending: true });
+        
+        if (typeFilter && typeFilter.value !== 'alles') {
+            query = query.eq('type', typeFilter.value);
+        }
         
         if (statusFilter && statusFilter.value !== 'alles') {
             query = query.eq('status', statusFilter.value);
@@ -92,11 +121,21 @@ document.addEventListener('DOMContentLoaded', function() {
             else if (planning.status === 'uitgevoerd') statusClass = 'status-uitgevoerd';
             else if (planning.status === 'geannuleerd') statusClass = 'status-geannuleerd';
             
+            // Toon extra info op basis van type
+            let extraInfo = '';
+            if (planning.type === 'ophaling' && planning.aantal_tonnen) {
+                extraInfo = `<p>📦 <strong>Aantal volle tonnen:</strong> ${planning.aantal_tonnen} stuks</p>`;
+            } else if (planning.type === 'plaatsing' && planning.aantal_lege_tonnen) {
+                extraInfo = `<p>🚚 <strong>Aantal lege tonnen meenemen:</strong> ${planning.aantal_lege_tonnen} stuks</p>`;
+            }
+            
             item.innerHTML = `
                 <div class="planning-info">
-                    <h4>${escapeHtml(planning.instelling?.instelling_naam || 'Onbekende instelling')}</h4>
-                    <p>${planning.type === 'ophaling' ? '📦 Ophaling' : '🚚 Afhaling'}</p>
-                    <p>📅 ${formatDate(planning.datum)} om ${planning.tijd}</p>
+                    <h4>${planning.type === 'ophaling' ? '📦 Ophaling' : '🚚 Plaatsing'}</h4>
+                    <p><strong>${escapeHtml(planning.adres?.instelling_naam || 'Onbekend')}</strong></p>
+                    <p>📍 ${escapeHtml(planning.adres?.straat || '')}, ${escapeHtml(planning.adres?.postcode || '')} ${escapeHtml(planning.adres?.plaats || '')}</p>
+                    <p>📅 ${formatDate(planning.datum)}</p>
+                    ${extraInfo}
                     ${planning.opmerkingen ? `<p>📝 ${escapeHtml(planning.opmerkingen)}</p>` : ''}
                     <span class="planning-status ${statusClass}">${getStatusText(planning.status)}</span>
                 </div>
@@ -137,23 +176,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Nieuwe planning
     if (newPlanningBtn) {
         newPlanningBtn.addEventListener('click', async () => {
-            await laadInstellingen();
-            vulInstellingDropdown();
+            await laadAdressen();
+            vulAdresDropdown();
             currentPlanningId = null;
             planningPopupTitle.textContent = 'Nieuwe planning';
-            document.getElementById('typeSelect').value = 'ophaling';
+            typeSelect.value = '';
+            adresSelect.value = '';
             document.getElementById('planningDatum').value = '';
-            document.getElementById('planningTijd').value = '';
+            document.getElementById('aantalTonnen').value = '1';
+            document.getElementById('aantalLegeTonnen').value = '1';
             document.getElementById('opmerkingen').value = '';
+            ophalingVelden.style.display = 'none';
+            plaatsingVelden.style.display = 'none';
             planningPopup.style.display = 'flex';
         });
     }
     
+    // Planning bewerken
     async function bewerkPlanning(id) {
-        await laadInstellingen();
-        vulInstellingDropdown();
+        await laadAdressen();
+        vulAdresDropdown();
         
         const { data, error } = await window.supabase
             .from('planningen')
@@ -168,59 +213,83 @@ document.addEventListener('DOMContentLoaded', function() {
         
         currentPlanningId = id;
         planningPopupTitle.textContent = 'Planning bewerken';
-        instellingSelect.value = data.instelling_id;
-        document.getElementById('typeSelect').value = data.type;
+        typeSelect.value = data.type;
+        adresSelect.value = data.adres_id;
         document.getElementById('planningDatum').value = data.datum;
-        document.getElementById('planningTijd').value = data.tijd;
+        document.getElementById('aantalTonnen').value = data.aantal_tonnen || '1';
+        document.getElementById('aantalLegeTonnen').value = data.aantal_lege_tonnen || '1';
         document.getElementById('opmerkingen').value = data.opmerkingen || '';
+        
+        // Toon juiste velden
+        if (data.type === 'ophaling') {
+            ophalingVelden.style.display = 'block';
+            plaatsingVelden.style.display = 'none';
+        } else if (data.type === 'plaatsing') {
+            ophalingVelden.style.display = 'none';
+            plaatsingVelden.style.display = 'block';
+        }
+        
         planningPopup.style.display = 'flex';
     }
     
+    // Opslaan planning
     if (savePlanningBtn) {
         savePlanningBtn.addEventListener('click', async () => {
-            const instellingId = instellingSelect?.value;
-            const type = document.getElementById('typeSelect')?.value;
+            const type = typeSelect?.value;
+            const adresId = adresSelect?.value;
             const datum = document.getElementById('planningDatum')?.value;
-            const tijd = document.getElementById('planningTijd')?.value;
+            const aantalTonnen = document.getElementById('aantalTonnen')?.value;
+            const aantalLegeTonnen = document.getElementById('aantalLegeTonnen')?.value;
             const opmerkingen = document.getElementById('opmerkingen')?.value;
             
-            if (!instellingId || !type || !datum || !tijd) {
-                alert('Vul alle verplichte velden in');
+            if (!type || !adresId || !datum) {
+                alert('Vul alle verplichte velden in (type, adres, datum)');
                 return;
             }
             
             const planningData = {
-                instelling_id: parseInt(instellingId),
+                adres_id: parseInt(adresId),
                 type: type,
                 datum: datum,
-                tijd: tijd,
                 opmerkingen: opmerkingen || null,
                 status: 'gepland'
             };
             
-            let error;
-            if (currentPlanningId) {
-                const result = await window.supabase
-                    .from('planningen')
-                    .update(planningData)
-                    .eq('id', currentPlanningId);
-                error = result.error;
-            } else {
-                const result = await window.supabase
-                    .from('planningen')
-                    .insert([planningData]);
-                error = result.error;
+            // Voeg type-specifieke velden toe
+            if (type === 'ophaling') {
+                planningData.aantal_tonnen = parseInt(aantalTonnen) || 1;
+            } else if (type === 'plaatsing') {
+                planningData.aantal_lege_tonnen = parseInt(aantalLegeTonnen) || 1;
             }
             
-            if (error) {
-                alert('Fout bij opslaan: ' + error.message);
-            } else {
-                planningPopup.style.display = 'none';
-                laadPlanningen();
+            try {
+                let error;
+                if (currentPlanningId) {
+                    const result = await window.supabase
+                        .from('planningen')
+                        .update(planningData)
+                        .eq('id', currentPlanningId);
+                    error = result.error;
+                } else {
+                    const result = await window.supabase
+                        .from('planningen')
+                        .insert([planningData]);
+                    error = result.error;
+                }
+                
+                if (error) {
+                    alert('Fout bij opslaan: ' + error.message);
+                } else {
+                    planningPopup.style.display = 'none';
+                    laadPlanningen();
+                }
+            } catch (err) {
+                alert('Fout: ' + err.message);
             }
         });
     }
     
+    // Planning verwijderen
     async function verwijderPlanning(id) {
         if (!confirm('Weet je zeker dat je deze planning wilt verwijderen?')) return;
         
@@ -236,10 +305,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Filters
     if (filterBtn) {
         filterBtn.addEventListener('click', laadPlanningen);
     }
     
+    // Popup sluiten
     if (closePlanningPopup) {
         closePlanningPopup.addEventListener('click', () => {
             planningPopup.style.display = 'none';
@@ -274,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     async function init() {
-        await laadInstellingen();
+        await laadAdressen();
         laadPlanningen();
     }
     
