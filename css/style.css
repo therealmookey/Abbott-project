@@ -581,3 +581,51 @@ hr {
         max-width: 200px;
     }
 }
+/* ===== CONTACTPERSOON STIJLEN ===== */
+.contactpersoon-cell {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.contactpersoon-cell a {
+    text-decoration: none;
+    border-bottom: 1px dashed #2c7da0;
+}
+
+.contactpersoon-cell a:hover {
+    border-bottom: 1px solid #2c7da0;
+}
+
+/* Popup headings */
+.popup-content h4 {
+    color: #2c7da0;
+    font-size: 0.9rem;
+    margin: 1rem 0 0.5rem 0;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #eee;
+}
+
+.popup-content h4:first-of-type {
+    margin-top: 0;
+}
+
+/* Email input styling */
+.popup-content input[type="email"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+/* Responsive voor contactpersoon kolom */
+@media (max-width: 768px) {
+    .contactpersoon-cell {
+        font-size: 0.8rem;
+    }
+    
+    .contactpersoon-cell a {
+        word-break: break-all;
+    }
+}
