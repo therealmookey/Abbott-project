@@ -882,3 +882,139 @@ mark {
         width: 100%;
     }
 }
+/* ===== ADMIN PAGINA ===== */
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+.admin-tabs .tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #6c757d;
+    transition: all 0.2s;
+    border-radius: 8px 8px 0 0;
+}
+
+.admin-tabs .tab-btn:hover {
+    background-color: #f8f9fa;
+    color: #2c7da0;
+}
+
+.admin-tabs .tab-btn.active {
+    color: #2c7da0;
+    border-bottom: 3px solid #2c7da0;
+    font-weight: 600;
+}
+
+.admin-tab {
+    display: none;
+}
+
+.admin-tab.active {
+    display: block;
+}
+
+.admin-tabel {
+    background: white;
+    border-radius: 12px;
+    overflow-x: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.admin-tabel table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-tabel th {
+    background-color: #f8f9fa;
+    color: #495057;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.admin-tabel td {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
+}
+
+.admin-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-buttons .btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+}
+
+.instellingen-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.instelling-item {
+    margin-bottom: 1.5rem;
+}
+
+.instelling-item label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #2c7da0;
+}
+
+.form-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+hr {
+    margin: 1.5rem 0;
+    border: none;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Popup labels */
+.popup-content label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+    color: #2c7da0;
+    font-size: 0.85rem;
+}
+
+.popup-content small {
+    display: block;
+    margin-bottom: 1rem;
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+.popup-content select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+}
