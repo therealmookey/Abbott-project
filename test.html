@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Test</title>
+</head>
+<body>
+    <h1>Supabase Test</h1>
+    <button onclick="testSignUp()">Test Account Aanmaken</button>
+    <pre id="result"></pre>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // VUL HIER JOUW EIGEN GEGEVENS IN!
+        const SUPABASE_URL = 'https://JOUW-PROJECT-ID.supabase.co';
+        const SUPABASE_ANON_KEY = 'JOUW-ANON-KEY';
+        
+        // Direct initialiseren
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        console.log('Client gemaakt:', supabaseClient);
+        
+        async function testSignUp() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Bezig...';
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: 'test-' + Date.now() + '@test.nl',
+                    password: 'test123456'
+                });
+                
+                if (error) {
+                    resultDiv.textContent = 'FOUT: ' + JSON.stringify(error, null, 2);
+                } else {
+                    resultDiv.textContent = 'SUCCES! Account aangemaakt: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (err) {
+                resultDiv.textContent = 'EXCEPTIE: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>
