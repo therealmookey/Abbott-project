@@ -2,36 +2,30 @@
 
 checkAuth();
 
-// DOM elementen
 const profielEmail = document.getElementById('profielEmail');
 const profielAangemaakt = document.getElementById('profielAangemaakt');
 const profielLaatsteInlog = document.getElementById('profielLaatsteInlog');
 const updateWachtwoordBtn = document.getElementById('updateWachtwoordBtn');
 const logoutBtnProfiel = document.getElementById('logoutBtnProfiel');
 
-// Toon profielgegevens
 async function toonProfiel() {
     const user = await getCurrentUser();
     if (user && profielEmail) {
         profielEmail.textContent = user.email;
         
-        // Aanmaakdatum account (als beschikbaar)
         if (user.created_at) {
             profielAangemaakt.textContent = new Date(user.created_at).toLocaleDateString('nl-NL');
         }
         
-        // Laatste inlog
-        if (typeof window.supabase !== 'undefined') {
-            const { data: { session } } = await window.supabase.auth.getSession();
+        if (typeof window.supabaseClient !== 'undefined') {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
             if (session?.created_at) {
-                profielLaatsteInlog.textContent = new Date(session.created_at).toLocaleDateString('nl-NL') + ' ' + 
-                                                   new Date(session.created_at).toLocaleTimeString('nl-NL');
+                profielLaatsteInlog.textContent = new Date(session.created_at).toLocaleDateString('nl-NL');
             }
         }
     }
 }
 
-// Wachtwoord wijzigen
 if (updateWachtwoordBtn) {
     updateWachtwoordBtn.addEventListener('click', async () => {
         const huidig = document.getElementById('huidigWachtwoord').value;
@@ -53,14 +47,13 @@ if (updateWachtwoordBtn) {
             return;
         }
         
-        if (typeof window.supabase === 'undefined') {
+        if (typeof window.supabaseClient === 'undefined') {
             alert('Supabase is niet beschikbaar');
             return;
         }
         
-        // Eerst verifiëren met huidig wachtwoord
         const user = await getCurrentUser();
-        const { error: signInError } = await window.supabase.auth.signInWithPassword({
+        const { error: signInError } = await window.supabaseClient.auth.signInWithPassword({
             email: user.email,
             password: huidig
         });
@@ -70,8 +63,7 @@ if (updateWachtwoordBtn) {
             return;
         }
         
-        // Wachtwoord bijwerken
-        const { error } = await window.supabase.auth.updateUser({
+        const { error } = await window.supabaseClient.auth.updateUser({
             password: nieuw
         });
         
@@ -86,15 +78,13 @@ if (updateWachtwoordBtn) {
     });
 }
 
-// Uitloggen
 if (logoutBtnProfiel) {
     logoutBtnProfiel.addEventListener('click', async () => {
-        if (typeof window.supabase !== 'undefined') {
-            await window.supabase.auth.signOut();
+        if (typeof window.supabaseClient !== 'undefined') {
+            await window.supabaseClient.auth.signOut();
         }
         window.location.href = 'index.html';
     });
 }
 
-// Initialiseer profiel
 toonProfiel();

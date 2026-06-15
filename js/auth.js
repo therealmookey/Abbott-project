@@ -1,11 +1,10 @@
-// ===== AUTHENTICATIE FUNCTIES (alleen voor index.html) =====
+// ===== AUTHENTICATIE FUNCTIES =====
 
-// Wacht tot de DOM geladen is
 document.addEventListener('DOMContentLoaded', function() {
     
-    // Controleer of window.supabase bestaat
-    if (typeof window.supabase === 'undefined') {
-        console.error('❌ Supabase is niet geïnitialiseerd! Check config.js');
+    // Controleer of supabaseClient bestaat
+    if (typeof window.supabaseClient === 'undefined') {
+        console.error('❌ Supabase is niet geïnitialiseerd!');
         const msgDiv = document.getElementById('message');
         if (msgDiv) {
             msgDiv.innerHTML = '<div class="message error">Configuratiefout: Supabase niet geladen</div>';
@@ -14,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    console.log('✅ Supabase is beschikbaar voor auth.js');
+    console.log('✅ Supabase is beschikbaar');
     
     // DOM elementen
     const loginForm = document.getElementById('loginForm');
@@ -77,21 +76,19 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 console.log('📝 Account aanmaken voor:', email);
                 
-                const { data, error } = await window.supabase.auth.signUp({
+                const { data, error } = await window.supabaseClient.auth.signUp({
                     email: email,
                     password: password
                 });
                 
                 if (error) {
-                    console.error('❌ Supabase error:', error);
+                    console.error('❌ Fout:', error);
                     toonBericht('message', error.message, 'error');
                 } else {
-                    console.log('✅ Account aangemaakt:', data);
+                    console.log('✅ Account aangemaakt!');
                     toonBericht('message', 'Account aangemaakt! Je kunt nu inloggen.', 'success');
-                    // Leeg de velden
                     document.getElementById('registerEmail').value = '';
                     document.getElementById('registerPassword').value = '';
-                    // Ga terug naar login tab
                     if (loginTabBtn) loginTabBtn.click();
                 }
             } catch (err) {
@@ -115,16 +112,16 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 console.log('🔐 Inloggen met:', email);
                 
-                const { data, error } = await window.supabase.auth.signInWithPassword({
+                const { data, error } = await window.supabaseClient.auth.signInWithPassword({
                     email: email,
                     password: password
                 });
                 
                 if (error) {
-                    console.error('❌ Login error:', error);
+                    console.error('❌ Login fout:', error);
                     toonBericht('message', error.message, 'error');
                 } else {
-                    console.log('✅ Login succes:', data);
+                    console.log('✅ Ingelogd!');
                     toonBericht('message', 'Ingelogd! Je wordt doorgestuurd...', 'success');
                     setTimeout(() => {
                         window.location.href = 'dashboard.html';
@@ -137,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // WACHTWOORD VERGETEN - popup tonen
+    // WACHTWOORD VERGETEN
     if (forgotLink) {
         forgotLink.addEventListener('click', (e) => {
             e.preventDefault();
@@ -151,7 +148,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Reset wachtwoord
     if (resetBtn) {
         resetBtn.addEventListener('click', async () => {
             const email = document.getElementById('resetEmail').value;
@@ -162,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             try {
-                const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
+                const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email, {
                     redirectTo: window.location.origin + '/Abbott-project/reset-password.html'
                 });
                 
@@ -179,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Enter toets voor inloggen
+    // Enter toets
     document.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             if (loginForm && loginForm.classList.contains('active')) {
@@ -190,4 +186,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-}); // Einde van DOMContentLoaded
+});

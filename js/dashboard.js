@@ -1,9 +1,7 @@
 // ===== DASHBOARD FUNCTIES =====
 
-// Check of gebruiker is ingelogd
 checkAuth();
 
-// Toon gebruikers e-mail op dashboard
 async function toonUserEmail() {
     const user = await getCurrentUser();
     const userEmailSpan = document.getElementById('userEmail');
@@ -12,21 +10,19 @@ async function toonUserEmail() {
     }
 }
 
-// Statistieken knop
 const statsBtn = document.getElementById('statsBtn');
 if (statsBtn) {
     statsBtn.addEventListener('click', async () => {
-        if (typeof window.supabase === 'undefined') {
+        if (typeof window.supabaseClient === 'undefined') {
             alert('Supabase is niet beschikbaar');
             return;
         }
         
-        // Haal aantal adressen en planningen op
-        const { count: adresCount } = await window.supabase
+        const { count: adresCount } = await window.supabaseClient
             .from('adressen')
             .select('*', { count: 'exact', head: true });
         
-        const { count: planningCount } = await window.supabase
+        const { count: planningCount } = await window.supabaseClient
             .from('planningen')
             .select('*', { count: 'exact', head: true });
         
@@ -34,5 +30,4 @@ if (statsBtn) {
     });
 }
 
-// Initialiseer dashboard
 toonUserEmail();

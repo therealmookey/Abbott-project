@@ -2,7 +2,6 @@
 
 checkAuth();
 
-// DOM elementen
 const planningLijst = document.getElementById('planningLijst');
 const newPlanningBtn = document.getElementById('newPlanningBtn');
 const planningPopup = document.getElementById('planningPopup');
@@ -18,9 +17,9 @@ let currentPlanningId = null;
 let instellingen = [];
 
 async function laadInstellingen() {
-    if (typeof window.supabase === 'undefined') return [];
+    if (typeof window.supabaseClient === 'undefined') return [];
     
-    const { data, error } = await window.supabase
+    const { data, error } = await window.supabaseClient
         .from('adressen')
         .select('id, instelling_naam')
         .order('instelling_naam');
@@ -50,12 +49,12 @@ async function laadPlanningen() {
     
     planningLijst.innerHTML = '<p>Laden...</p>';
     
-    if (typeof window.supabase === 'undefined') {
+    if (typeof window.supabaseClient === 'undefined') {
         planningLijst.innerHTML = '<p class="error">Supabase is niet beschikbaar</p>';
         return;
     }
     
-    let query = window.supabase
+    let query = window.supabaseClient
         .from('planningen')
         .select(`
             *,
@@ -102,7 +101,7 @@ async function laadPlanningen() {
                 <span class="planning-status ${statusClass}">${getStatusText(planning.status)}</span>
             </div>
             <div class="planning-buttons">
-                <select class="status-select" data-id="${planning.id}" data-status="${planning.status}">
+                <select class="status-select" data-id="${planning.id}">
                     <option value="gepland" ${planning.status === 'gepland' ? 'selected' : ''}>Gepland</option>
                     <option value="uitgevoerd" ${planning.status === 'uitgevoerd' ? 'selected' : ''}>Uitgevoerd</option>
                     <option value="geannuleerd" ${planning.status === 'geannuleerd' ? 'selected' : ''}>Geannuleerd</option>
@@ -126,9 +125,9 @@ async function laadPlanningen() {
 }
 
 async function updateStatus(id, nieuweStatus) {
-    if (typeof window.supabase === 'undefined') return;
+    if (typeof window.supabaseClient === 'undefined') return;
     
-    const { error } = await window.supabase
+    const { error } = await window.supabaseClient
         .from('planningen')
         .update({ status: nieuweStatus })
         .eq('id', id);
@@ -158,9 +157,9 @@ async function bewerkPlanning(id) {
     await laadInstellingen();
     vulInstellingDropdown();
     
-    if (typeof window.supabase === 'undefined') return;
+    if (typeof window.supabaseClient === 'undefined') return;
     
-    const { data, error } = await window.supabase
+    const { data, error } = await window.supabaseClient
         .from('planningen')
         .select('*')
         .eq('id', id)
@@ -183,7 +182,7 @@ async function bewerkPlanning(id) {
 
 if (savePlanningBtn) {
     savePlanningBtn.addEventListener('click', async () => {
-        if (typeof window.supabase === 'undefined') {
+        if (typeof window.supabaseClient === 'undefined') {
             alert('Supabase is niet beschikbaar');
             return;
         }
@@ -210,13 +209,13 @@ if (savePlanningBtn) {
         
         let error;
         if (currentPlanningId) {
-            const result = await window.supabase
+            const result = await window.supabaseClient
                 .from('planningen')
                 .update(planningData)
                 .eq('id', currentPlanningId);
             error = result.error;
         } else {
-            const result = await window.supabase
+            const result = await window.supabaseClient
                 .from('planningen')
                 .insert([planningData]);
             error = result.error;
@@ -234,9 +233,9 @@ if (savePlanningBtn) {
 async function verwijderPlanning(id) {
     if (!confirm('Weet je zeker dat je deze planning wilt verwijderen?')) return;
     
-    if (typeof window.supabase === 'undefined') return;
+    if (typeof window.supabaseClient === 'undefined') return;
     
-    const { error } = await window.supabase
+    const { error } = await window.supabaseClient
         .from('planningen')
         .delete()
         .eq('id', id);

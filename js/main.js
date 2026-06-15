@@ -1,6 +1,5 @@
 // ===== GEMEENSCHAPPELIJKE FUNCTIES =====
 
-// Laad navigatie in elke pagina (behalve index.html)
 async function laadNavigatie() {
     const placeholder = document.getElementById('navigatie-placeholder');
     if (!placeholder) return;
@@ -10,11 +9,10 @@ async function laadNavigatie() {
         const html = await response.text();
         placeholder.innerHTML = html;
         
-        // Koppel logout knop na laden navigatie
         const logoutBtn = document.getElementById('logoutBtnNav');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
-                await window.supabase.auth.signOut();
+                if (window.supabaseClient) await window.supabaseClient.auth.signOut();
                 window.location.href = 'index.html';
             });
         }
@@ -23,7 +21,6 @@ async function laadNavigatie() {
     }
 }
 
-// Toon bericht op pagina
 function toonBericht(elementId, bericht, type = 'success') {
     const element = document.getElementById(elementId);
     if (element) {
@@ -36,15 +33,13 @@ function toonBericht(elementId, bericht, type = 'success') {
     }
 }
 
-// Check of gebruiker is ingelogd (beveiliging)
 async function checkAuth() {
-    if (typeof window.supabase === 'undefined') {
-        console.error('Supabase niet beschikbaar');
+    if (typeof window.supabaseClient === 'undefined') {
         window.location.href = 'index.html';
         return null;
     }
     
-    const { data: { session } } = await window.supabase.auth.getSession();
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
     if (!session) {
         window.location.href = 'index.html';
         return null;
@@ -52,12 +47,10 @@ async function checkAuth() {
     return session;
 }
 
-// Haal huidige gebruiker op
 async function getCurrentUser() {
-    if (typeof window.supabase === 'undefined') return null;
-    const { data: { user } } = await window.supabase.auth.getUser();
+    if (typeof window.supabaseClient === 'undefined') return null;
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
     return user;
 }
 
-// Laad navigatie bij elke pagina
 document.addEventListener('DOMContentLoaded', laadNavigatie);
