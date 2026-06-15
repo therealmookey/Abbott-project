@@ -1,4 +1,4 @@
-// ===== ADRESSEN FUNCTIES MET ROUTE PLANNER (PAPIEREN ROUTE) =====
+// ===== ADRESSEN FUNCTIES MET ROUTE PLANNER + STARTPUNT =====
 
 console.log('adressen.js geladen');
 
@@ -28,27 +28,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const startpuntWeergave = document.getElementById('startpuntWeergave');
     const aantalStopsSpan = document.getElementById('aantalStops');
     const routeDatumSpan = document.getElementById('routeDatum');
+    const startpuntInput = document.getElementById('startpuntInput');
+    const startpuntOpslaanBtn = document.getElementById('startpuntOpslaanBtn');
+    const startpuntResetBtn = document.getElementById('startpuntResetBtn');
     
     let currentAddressId = null;
     let alleAdressen = [];
     let huidigeZoekterm = '';
     let geselecteerdeAdressen = [];
+    let startpunt = { adres: 'Magazijn / Standplaats', lat: null, lon: null };
     
-    // Helper functies
-    function getValue(id) {
-        const el = document.getElementById(id);
-        return el ? el.value : '';
+    // Laad opgeslagen startpunt uit localStorage
+    function laadStartpunt() {
+        const opgeslagen = localStorage.getItem('abbott_startpunt');
+        if (opgeslagen) {
+            try {
+                startpunt = JSON.parse(opgeslagen);
+                if (startpuntInput) startpuntInput.value = startpunt.adres;
+                if (startpuntWeergave) startpuntWeergave.innerHTML = `<strong>${escapeHtml(startpunt.adres)}</strong>`;
+                console.log('Startpunt geladen:', startpunt);
+            } catch(e) {}
+        }
     }
     
-    function setValue(id, value) {
-        const el = document.getElementById(id);
-        if (el) el.value = value || '';
+    // Sla startpunt op in localStorage
+    function slaStartpuntOp() {
+        localStorage.setItem('abbott_startpunt', JSON.stringify(startpunt));
     }
     
-    // Coördinaten ophalen via Nominatim (OpenStreetMap) - gratis!
-    async function haalCoordinatenOp(adres) {
-        const zoekTerm = `${adres.straat}, ${adres.postcode} ${adres.plaats}, België`;
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(zoekTerm)}&limit=1`;
+    // Coördinaten ophalen via Nominatim (OpenStreetMap)
+    async function haalCoordinatenOp(adresString) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adresString)}&limit=1`;
         
         try {
             const response = await fetch(url, {
@@ -60,7 +70,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data && data.length > 0) {
                 return {
                     lat: parseFloat(data[0].lat),
-                    lon: parseFloat(data[0].lon)
+                    lon: parseFloat(data[0].lon),
+                    displayName: data[0].display_name
                 };
             }
         } catch (error) {
@@ -71,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Afstand berekenen tussen twee punten (Haversine formule - vogelvlucht in km)
     function berekenAfstand(lat1, lon1, lat2, lon2) {
-        const R = 6371; // Radius aarde in km
+        const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
         const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -81,14 +92,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return R * c;
     }
     
-    // Optimaliseer route op basis van vogelvlucht afstand (dichtstbijzijnde eerst)
-    async function optimaliseerRoute(adressen, startpunt = null) {
+    // Optimaliseer route op basis van vogelvlucht afstand (met startpunt)
+    async function optimaliseerRoute(adressen, startpuntCoords) {
         if (!adressen || adressen.length === 0) return [];
         
         // Haal coördinaten op voor alle adressen
         const adressenMetCoords = [];
         for (const adres of adressen) {
-            const coords = await haalCoordinatenOp(adres);
+            const zoekTerm = `${adres.straat}, ${adres.postcode} ${adres.plaats}, België`;
+            const coords = await haalCoordinatenOp(zoekTerm);
             if (coords) {
                 adressenMetCoords.push({
                     ...adres,
@@ -100,17 +112,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Filter adressen zonder coördinaten (die komen achteraan)
+        // Filter adressen zonder coördinaten
         const metCoords = adressenMetCoords.filter(a => a.lat && a.lon);
         const zonderCoords = adressenMetCoords.filter(a => !a.lat || !a.lon);
         
         if (metCoords.length === 0) return adressen;
         
-        // Bepaal startpunt (standaard: eerste adres of opgegeven startpunt)
+        // Gebruik startpunt als beginpunt als beschikbaar
         let huidigeLat, huidigeLon;
-        if (startpunt && startpunt.lat && startpunt.lon) {
-            huidigeLat = startpunt.lat;
-            huidigeLon = startpunt.lon;
+        if (startpuntCoords && startpuntCoords.lat && startpuntCoords.lon) {
+            huidigeLat = startpuntCoords.lat;
+            huidigeLon = startpuntCoords.lon;
         } else if (metCoords[0].lat && metCoords[0].lon) {
             huidigeLat = metCoords[0].lat;
             huidigeLon = metCoords[0].lon;
@@ -118,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return adressen;
         }
         
-        // Greedy algoritme: kies steeds het dichtstbijzijnde volgende punt
+        // Greedy algoritme
         const ongeordend = [...metCoords];
         const geordend = [];
         
@@ -143,8 +155,104 @@ document.addEventListener('DOMContentLoaded', function() {
             ongeordend.splice(dichtstbijIndex, 1);
         }
         
-        // Adressen zonder coördinaten achteraan toevoegen
         return [...geordend, ...zonderCoords];
+    }
+    
+    // Route popup tonen
+    async function toonRoutePopup() {
+        if (geselecteerdeAdressen.length === 0) {
+            alert('Selecteer eerst minimaal één adres voor de route.');
+            return;
+        }
+        
+        if (routeDatumSpan) {
+            const vandaag = new Date();
+            routeDatumSpan.textContent = vandaag.toLocaleDateString('nl-NL');
+        }
+        
+        routeLocationsList.innerHTML = '<p>Bezig met optimaliseren...</p>';
+        routePopup.style.display = 'flex';
+        
+        // Gebruik startpunt coördinaten als beschikbaar
+        let startpuntCoords = null;
+        if (startpunt.lat && startpunt.lon) {
+            startpuntCoords = { lat: startpunt.lat, lon: startpunt.lon };
+        }
+        
+        const geoptimaliseerd = await optimaliseerRoute([...geselecteerdeAdressen], startpuntCoords);
+        
+        let html = '<ol class="route-ol">';
+        
+        // Startpunt als eerste item tonen (indien aanwezig)
+        if (startpunt.adres) {
+            html += `
+                <li class="route-item route-start-item">
+                    <strong>🚀 VERTREK: ${escapeHtml(startpunt.adres)}</strong>
+                </li>
+            `;
+        }
+        
+        // Route stops
+        geoptimaliseerd.forEach((adres, index) => {
+            html += `
+                <li class="route-item">
+                    <strong>${index + 1}. ${escapeHtml(adres.instelling_naam)}</strong><br>
+                    📍 ${escapeHtml(adres.straat)}<br>
+                    📮 ${escapeHtml(adres.postcode)} ${escapeHtml(adres.plaats)}<br>
+                    ${adres.contactpersoon_naam ? `👤 ${escapeHtml(adres.contactpersoon_naam)}<br>` : ''}
+                    ${adres.contactpersoon_email ? `📧 ${escapeHtml(adres.contactpersoon_email)}<br>` : ''}
+                    ${adres.telefoon ? `📞 ${escapeHtml(adres.telefoon)}<br>` : ''}
+                    ${adres.extra_info ? `<div class="route-extra-info">📝 ${escapeHtml(adres.extra_info)}</div>` : ''}
+                </li>
+            `;
+        });
+        
+        html += '</ol>';
+        routeLocationsList.innerHTML = html;
+        if (aantalStopsSpan) aantalStopsSpan.textContent = geoptimaliseerd.length;
+    }
+    
+    // Startpunt opslaan en coördinaten ophalen
+    if (startpuntOpslaanBtn) {
+        startpuntOpslaanBtn.addEventListener('click', async () => {
+            const adresString = startpuntInput.value.trim();
+            if (!adresString) {
+                alert('Vul een startpunt in (bv. "Magazijn Antwerpen, België")');
+                return;
+            }
+            
+            startpuntOpslaanBtn.textContent = 'Bezig met zoeken...';
+            startpuntOpslaanBtn.disabled = true;
+            
+            const coords = await haalCoordinatenOp(adresString);
+            
+            if (coords) {
+                startpunt = {
+                    adres: adresString,
+                    lat: coords.lat,
+                    lon: coords.lon
+                };
+                slaStartpuntOp();
+                if (startpuntWeergave) startpuntWeergave.innerHTML = `<strong>${escapeHtml(adresString)}</strong>`;
+                alert(`Startpunt opgeslagen! Coördinaten gevonden.`);
+            } else {
+                alert('Kon geen coördinaten vinden voor dit adres. Probeer een specifiekere locatie (bv. "Antwerpen, België")');
+            }
+            
+            startpuntOpslaanBtn.textContent = 'Opslaan';
+            startpuntOpslaanBtn.disabled = false;
+        });
+    }
+    
+    // Startpunt resetten
+    if (startpuntResetBtn) {
+        startpuntResetBtn.addEventListener('click', () => {
+            startpunt = { adres: 'Magazijn / Standplaats', lat: null, lon: null };
+            slaStartpuntOp();
+            if (startpuntInput) startpuntInput.value = '';
+            if (startpuntWeergave) startpuntWeergave.innerHTML = '<strong>Magazijn / Standplaats</strong>';
+            alert('Startpunt gereset naar standaard');
+        });
     }
     
     // Tabel weergeven met selectievakjes
@@ -247,7 +355,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Individuele checkboxes
         document.querySelectorAll('.adres-checkbox').forEach(cb => {
             cb.addEventListener('change', (e) => {
                 const id = parseInt(e.target.dataset.id);
@@ -261,7 +368,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 updateRouteButton();
                 
-                // Update selecteer alle checkbox
                 const selecteerAlle = document.getElementById('selecteerAlleCheckbox');
                 if (selecteerAlle) {
                     const alleCheckboxes = document.querySelectorAll('.adres-checkbox');
@@ -271,7 +377,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Edit en delete buttons
         document.querySelectorAll('.edit-btn').forEach(btn => {
             btn.addEventListener('click', () => bewerkAdres(btn.dataset.id));
         });
@@ -286,66 +391,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Route popup tonen met geoptimaliseerde volgorde
-    async function toonRoutePopup() {
-        if (geselecteerdeAdressen.length === 0) {
-            alert('Selecteer eerst minimaal één adres voor de route.');
-            return;
-        }
-        
-        // Toon datum
-        if (routeDatumSpan) {
-            const vandaag = new Date();
-            routeDatumSpan.textContent = vandaag.toLocaleDateString('nl-NL');
-        }
-        
-        // Optimaliseer route
-        routeLocationsList.innerHTML = '<p>Bezig met optimaliseren...</p>';
-        routePopup.style.display = 'flex';
-        
-        const geoptimaliseerd = await optimaliseerRoute([...geselecteerdeAdressen]);
-        
-        // Toon de route
-        let html = '<ol class="route-ol">';
-        geoptimaliseerd.forEach((adres, index) => {
-            html += `
-                <li class="route-item">
-                    <strong>${index + 1}. ${escapeHtml(adres.instelling_naam)}</strong><br>
-                    📍 ${escapeHtml(adres.straat)}<br>
-                    📮 ${escapeHtml(adres.postcode)} ${escapeHtml(adres.plaats)}<br>
-                    ${adres.contactpersoon_naam ? `👤 ${escapeHtml(adres.contactpersoon_naam)}<br>` : ''}
-                    ${adres.contactpersoon_email ? `📧 ${escapeHtml(adres.contactpersoon_email)}<br>` : ''}
-                    ${adres.telefoon ? `📞 ${escapeHtml(adres.telefoon)}<br>` : ''}
-                    ${adres.extra_info ? `<div class="route-extra-info">📝 ${escapeHtml(adres.extra_info)}</div>` : ''}
-                </li>
-            `;
-        });
-        html += '</ol>';
-        
-        routeLocationsList.innerHTML = html;
-        if (aantalStopsSpan) aantalStopsSpan.textContent = geoptimaliseerd.length;
-    }
-    
-    // Print functie
-    if (printRouteBtn) {
-        printRouteBtn.addEventListener('click', () => {
-            window.print();
-        });
-    }
-    
-    // Route popup openen
-    if (routeBtn) {
-        routeBtn.addEventListener('click', toonRoutePopup);
-    }
-    
-    // Route popup sluiten
-    if (closeRoutePopupBtn) {
-        closeRoutePopupBtn.addEventListener('click', () => {
-            routePopup.style.display = 'none';
-        });
-    }
-    
-    // Filter adressen
     function filterAdressen(zoekterm) {
         if (!zoekterm || zoekterm.trim() === '') {
             return alleAdressen;
@@ -363,7 +408,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Laad adressen
     async function laadAdressen() {
         if (!adressenLijst) return;
         
@@ -389,7 +433,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Zoek functie
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             huidigeZoekterm = e.target.value;
@@ -409,7 +452,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Adres toevoegen bewerken
+    if (routeBtn) {
+        routeBtn.addEventListener('click', toonRoutePopup);
+    }
+    
+    if (closeRoutePopupBtn) {
+        closeRoutePopupBtn.addEventListener('click', () => {
+            routePopup.style.display = 'none';
+        });
+    }
+    
+    if (printRouteBtn) {
+        printRouteBtn.addEventListener('click', () => {
+            window.print();
+        });
+    }
+    
     if (addAddressBtn) {
         addAddressBtn.addEventListener('click', () => {
             currentAddressId = null;
@@ -534,6 +592,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    function getValue(id) {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+    }
+    
+    function setValue(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.value = value || '';
+    }
+    
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -541,6 +609,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return div.innerHTML;
     }
     
+    // Initialiseer startpunt
+    laadStartpunt();
     laadAdressen();
     
 });
