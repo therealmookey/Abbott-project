@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning - Abbott</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="navigatie-placeholder"></div>
+    
+    <main class="container">
+        <div class="page-header">
+            <h1>📅 Ophalingen & Afhalingen</h1>
+            <button id="newPlanningBtn" class="btn btn-primary">+ Nieuwe planning</button>
+        </div>
+        
+        <div class="filter-section">
+            <select id="statusFilter">
+                <option value="alles">Alle statussen</option>
+                <option value="gepland">Gepland</option>
+                <option value="uitgevoerd">Uitgevoerd</option>
+                <option value="geannuleerd">Geannuleerd</option>
+            </select>
+            <input type="date" id="datumFilter">
+            <button id="filterBtn" class="btn btn-secondary">Filter</button>
+        </div>
+        
+        <div id="planningLijst" class="planning-lijst">
+            <p>Laden...</p>
+        </div>
+    </main>
+    
+    <div id="planningPopup" class="popup">
+        <div class="popup-content">
+            <h3 id="planningPopupTitle">Nieuwe planning</h3>
+            <select id="instellingSelect" required>
+                <option value="">Kies een instelling...</option>
+            </select>
+            <select id="typeSelect" required>
+                <option value="ophaling">Ophaling</option>
+                <option value="afhaling">Afhaling</option>
+            </select>
+            <input type="date" id="planningDatum" required>
+            <input type="time" id="planningTijd" required>
+            <textarea id="opmerkingen" placeholder="Extra opmerkingen (optioneel)"></textarea>
+            <button id="savePlanningBtn" class="btn btn-primary">Opslaan</button>
+            <button id="closePlanningPopup" class="btn btn-secondary">Annuleren</button>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/planning.js"></script>
+</body>
+</html>
