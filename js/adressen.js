@@ -70,13 +70,20 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             data.forEach(adres => {
+                // Verkorte weergave van extra info (eerste 100 karakters)
+                let extraInfoShort = '-';
+                if (adres.extra_info) {
+                    extraInfoShort = escapeHtml(adres.extra_info.substring(0, 100));
+                    if (adres.extra_info.length > 100) extraInfoShort += '...';
+                }
+                
                 html += `
                     <tr>
                         <td><strong>${escapeHtml(adres.instelling_naam)}</strong></td>
                         <td>${escapeHtml(adres.straat)}</td>
                         <td>${escapeHtml(adres.postcode)}<br>${escapeHtml(adres.plaats)}</td>
                         <td>${adres.telefoon ? escapeHtml(adres.telefoon) : '-'}</td>
-                        <td>${adres.extra_info ? escapeHtml(adres.extra_info.substring(0, 100)) + (adres.extra_info.length > 100 ? '...' : '') : '-'}</td>
+                        <td class="extra-info-cell">${extraInfoShort}</td>
                         <td class="adres-buttons">
                             <button class="btn btn-secondary edit-btn" data-id="${adres.id}">✏️ Bewerken</button>
                             <button class="btn btn-danger delete-btn" data-id="${adres.id}">🗑️ Verwijderen</button>
