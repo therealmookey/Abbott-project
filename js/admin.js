@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - MET CHAUFFEURS ALS FILTER =====
+// ===== ADMIN FUNCTIES - BLIJFT INGELOGD =====
 
 console.log('admin.js geladen');
 
@@ -9,26 +9,79 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
-    // Check admin status
-    const { data: { user } } = await window.supabase.auth.getUser();
+    // Voorkom dat form submits de pagina herladen
+    document.addEventListener('submit', function(e) {
+        e.preventDefault();
+    });
+    
+    // Hulpfunctie voor berichten
+    function toonFout(bericht) {
+        console.error(bericht);
+        const container = document.querySelector('.container');
+        if (container) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message error';
+            errorDiv.textContent = bericht;
+            errorDiv.style.cssText = 'background:#f8d7da;color:#721c24;padding:15px;margin:20px;border-radius:8px;';
+            container.prepend(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+    }
+    
+    // Huidige gebruiker ophalen
+    const { data: { user }, error: userError } = await window.supabase.auth.getUser();
+    
+    if (userError) {
+        console.error('Fout bij ophalen gebruiker:', userError);
+        toonFout('Kon gebruiker niet laden. Ben je ingelogd?');
+        setTimeout(() => window.location.href = 'index.html', 2000);
+        return;
+    }
+    
     if (!user) {
-        window.location.href = 'index.html';
+        console.log('Geen gebruiker ingelogd');
+        toonFout('Je moet ingelogd zijn om deze pagina te bekijken.');
+        setTimeout(() => window.location.href = 'index.html', 2000);
         return;
     }
     
-    const { data: userRollen } = await window.supabase
-        .from('gebruikers_rollen')
-        .select('rol')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    console.log('Ingelogd als:', user.email);
     
-    if (!userRollen || userRollen.rol !== 'admin') {
-        alert('Je hebt geen toegang tot deze pagina. Alleen admins kunnen hier komen.');
-        window.location.href = 'dashboard.html';
+    // Admin check - kijk in gebruikers_rollen tabel
+    let isAdmin = false;
+    
+    try {
+        const { data: adminData, error: adminError } = await window.supabase
+            .from('gebruikers_rollen')
+            .select('rol')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        
+        if (adminError) {
+            console.error('Fout bij admin check:', adminError);
+        }
+        
+        isAdmin = (adminData && adminData.rol === 'admin');
+        
+        // Fallback voor vaste admin
+        if (!isAdmin && user.id === 'fixed_admin_001') {
+            isAdmin = true;
+        }
+        
+    } catch (err) {
+        console.error('Admin check error:', err);
+    }
+    
+    if (!isAdmin) {
+        console.log('Geen admin rechten voor:', user.email);
+        toonFout('Je hebt geen toegang tot deze pagina. Alleen admins kunnen hier komen.');
+        setTimeout(() => window.location.href = 'dashboard.html', 2000);
         return;
     }
     
-    console.log('✅ Admin toegang verleend!');
+    console.log('✅ Admin toegang verleend voor:', user.email);
+    
+    // =========== ADMIN FUNCTIONALITEIT ===========
     
     // DOM elementen
     const addUserBtn = document.getElementById('addUserBtn');
@@ -51,7 +104,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     const startpuntInstelling = document.getElementById('startpuntInstelling');
     
     let currentUserId = null;
-    let alleGebruikers = [];
     let huidigeUserZoekterm = '';
     let huidigeChauffeurZoekterm = '';
     
@@ -65,25 +117,22 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Laad alle gebruikers
     async function laadGebruikers() {
         if (!gebruikersLijst) return;
-        
         gebruikersLijst.innerHTML = '<p>Bezig met laden...</p>';
         
         try {
-            const { data: rollen, error } = await window.supabase
+            const { data, error } = await window.supabase
                 .from('gebruikers_rollen')
                 .select('*')
                 .order('created_at', { ascending: false });
             
             if (error) throw error;
             
-            alleGebruikers = rollen || [];
+            if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = data?.length || 0;
             
-            if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = alleGebruikers.length;
-            
-            let gefilterd = alleGebruikers;
+            let gefilterd = data || [];
             if (huidigeUserZoekterm) {
                 const term = huidigeUserZoekterm.toLowerCase();
-                gefilterd = alleGebruikers.filter(g => 
+                gefilterd = gefilterd.filter(g => 
                     (g.gebruikersnaam && g.gebruikersnaam.toLowerCase().includes(term))
                 );
             }
@@ -93,52 +142,39 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
             
-            let html = `
-                <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background-color: #f8f9fa;">
-                            <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
-                            <th style="padding: 12px; text-align: left;">Rol</th>
-                            <th style="padding: 12px; text-align: left;">Chauffeur</th>
-                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
-                            <th style="padding: 12px; text-align: left;">Telefoon (WhatsApp)</th>
-                            <th style="padding: 12px; text-align: left;">Aangemaakt</th>
-                            <th style="padding: 12px; text-align: left;">Acties</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            let html = `<div style="overflow-x: auto;"><table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="background:#f8f9fa;">
+                    <th style="padding:12px;text-align:left;">Gebruikersnaam</th>
+                    <th style="padding:12px;text-align:left;">Rol</th>
+                    <th style="padding:12px;text-align:left;">Chauffeur</th>
+                    <th style="padding:12px;text-align:left;">Nummer</th>
+                    <th style="padding:12px;text-align:left;">WhatsApp</th>
+                    <th style="padding:12px;text-align:left;">Aangemaakt</th>
+                    <th style="padding:12px;text-align:left;">Acties</th>
+                </tr></thead><tbody>`;
             
             for (const g of gefilterd) {
-                html += `
-                    <tr style="border-bottom: 1px solid #e9ecef;">
-                        <td style="padding: 12px;"><strong>${escapeHtml(g.gebruikersnaam || '-')}</strong></td>
-                        <td style="padding: 12px;">${g.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
-                        <td style="padding: 12px;">${g.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
-                        <td style="padding: 12px;">${escapeHtml(g.chauffeur_nummer || '-')}</td>
-                        <td style="padding: 12px;">${escapeHtml(g.chauffeur_telefoon || '-')}</td>
-                        <td style="padding: 12px;">${new Date(g.created_at).toLocaleDateString('nl-NL')}</td>
-                        <td style="padding: 12px;">
-                            <button class="btn btn-secondary edit-user-btn" data-userid="${g.user_id}" style="margin-right: 5px;">✏️</button>
-                            <button class="btn btn-danger delete-user-btn" data-userid="${g.user_id}">🗑️</button>
-                        </td>
-                    </tr>
-                `;
+                html += `<tr style="border-bottom:1px solid #e9ecef;">
+                    <td style="padding:12px;"><strong>${escapeHtml(g.gebruikersnaam || '-')}</strong></td>
+                    <td style="padding:12px;">${g.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
+                    <td style="padding:12px;">${g.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
+                    <td style="padding:12px;">${escapeHtml(g.chauffeur_nummer || '-')}</td>
+                    <td style="padding:12px;">${escapeHtml(g.chauffeur_telefoon || '-')}</td>
+                    <td style="padding:12px;">${new Date(g.created_at).toLocaleDateString('nl-NL')}</td>
+                    <td style="padding:12px;">
+                        <button class="btn btn-secondary edit-btn" data-userid="${g.user_id}" style="margin-right:5px;">✏️</button>
+                        <button class="btn btn-danger delete-btn" data-userid="${g.user_id}">🗑️</button>
+                    </td>
+                </tr>`;
             }
             
-            html += `
-                    </tbody>
-                </table>
-                </div>
-            `;
-            
+            html += `</tbody></table></div>`;
             gebruikersLijst.innerHTML = html;
             
-            document.querySelectorAll('.edit-user-btn').forEach(btn => {
+            document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => bewerkGebruiker(btn.dataset.userid));
             });
-            document.querySelectorAll('.delete-user-btn').forEach(btn => {
+            document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => verwijderGebruiker(btn.dataset.userid));
             });
             
@@ -151,11 +187,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Laad alleen chauffeurs
     async function laadChauffeurs() {
         if (!chauffeursLijst) return;
-        
         chauffeursLijst.innerHTML = '<p>Bezig met laden...</p>';
         
         try {
-            const { data: chauffeurs, error } = await window.supabase
+            const { data, error } = await window.supabase
                 .from('gebruikers_rollen')
                 .select('*')
                 .eq('is_chauffeur', true)
@@ -163,57 +198,33 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (error) throw error;
             
-            if (aantalChauffeursSpan) aantalChauffeursSpan.textContent = chauffeurs?.length || 0;
+            if (aantalChauffeursSpan) aantalChauffeursSpan.textContent = data?.length || 0;
             
-            let gefilterd = chauffeurs || [];
-            if (huidigeChauffeurZoekterm) {
-                const term = huidigeChauffeurZoekterm.toLowerCase();
-                gefilterd = gefilterd.filter(c => 
-                    (c.gebruikersnaam && c.gebruikersnaam.toLowerCase().includes(term)) ||
-                    (c.chauffeur_nummer && c.chauffeur_nummer.toLowerCase().includes(term))
-                );
-            }
-            
-            if (gefilterd.length === 0) {
-                chauffeursLijst.innerHTML = '<p>Geen chauffeurs gevonden. Maak een gebruiker aan en vink "Chauffeur" aan.</p>';
+            if (!data || data.length === 0) {
+                chauffeursLijst.innerHTML = '<p>Geen chauffeurs gevonden. Vink "Chauffeur" aan bij een gebruiker.</p>';
                 return;
             }
             
-            let html = `
-                <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background-color: #f8f9fa;">
-                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
-                            <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
-                            <th style="padding: 12px; text-align: left;">Telefoon (WhatsApp)</th>
-                            <th style="padding: 12px; text-align: left;">E-mail</th>
-                            <th style="padding: 12px; text-align: left;">Acties</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            let html = `<div style="overflow-x: auto;"><table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="background:#f8f9fa;">
+                    <th style="padding:12px;text-align:left;">Nummer</th>
+                    <th style="padding:12px;text-align:left;">Gebruikersnaam</th>
+                    <th style="padding:12px;text-align:left;">WhatsApp</th>
+                    <th style="padding:12px;text-align:left;">Acties</th>
+                </tr></thead><tbody>`;
             
-            for (const c of gefilterd) {
-                html += `
-                    <tr style="border-bottom: 1px solid #e9ecef;">
-                        <td style="padding: 12px;"><strong>${escapeHtml(c.chauffeur_nummer || '-')}</strong></td>
-                        <td style="padding: 12px;">${escapeHtml(c.gebruikersnaam || '-')}</td>
-                        <td style="padding: 12px;">${escapeHtml(c.chauffeur_telefoon || '-')}</td>
-                        <td style="padding: 12px;">${escapeHtml(c.user_id?.substring(0, 8) || '-')}...</td>
-                        <td style="padding: 12px;">
-                            <button class="btn btn-secondary edit-chauffeur-btn" data-userid="${c.user_id}">✏️ Bewerken</button>
-                        </td>
-                    </tr>
-                `;
+            for (const c of data) {
+                html += `<tr style="border-bottom:1px solid #e9ecef;">
+                    <td style="padding:12px;"><strong>${escapeHtml(c.chauffeur_nummer || '-')}</strong></td>
+                    <td style="padding:12px;">${escapeHtml(c.gebruikersnaam || '-')}</td>
+                    <td style="padding:12px;">${escapeHtml(c.chauffeur_telefoon || '-')}</td>
+                    <td style="padding:12px;">
+                        <button class="btn btn-secondary edit-chauffeur-btn" data-userid="${c.user_id}">✏️ Bewerken</button>
+                    </td>
+                </tr>`;
             }
             
-            html += `
-                    </tbody>
-                </table>
-                </div>
-            `;
-            
+            html += `</tbody></table></div>`;
             chauffeursLijst.innerHTML = html;
             
             document.querySelectorAll('.edit-chauffeur-btn').forEach(btn => {
@@ -232,12 +243,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             const { count: adresCount } = await window.supabase
                 .from('adressen')
                 .select('*', { count: 'exact', head: true });
-            
             if (aantalAdressenSpan) aantalAdressenSpan.textContent = adresCount || 0;
-            
-        } catch (err) {
-            console.error('Fout bij laden statistieken:', err);
-        }
+        } catch(e) { console.error(e); }
     }
     
     // Bewerk gebruiker
@@ -255,8 +262,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (error) throw error;
             
             document.getElementById('userGebruikersnaam').value = data.gebruikersnaam || '';
-            document.getElementById('userEmail').value = '';
             document.getElementById('userEmail').disabled = true;
+            document.getElementById('userEmail').value = '';
             document.getElementById('userEmail').placeholder = 'E-mail niet bewerkbaar';
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = false;
@@ -275,11 +282,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Verwijder gebruiker
     async function verwijderGebruiker(userId) {
+        if (userId === 'fixed_admin_001') {
+            alert('Je kunt de vaste admin niet verwijderen!');
+            return;
+        }
         if (userId === user.id) {
             alert('Je kunt jezelf niet verwijderen!');
             return;
         }
-        
         if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) return;
         
         try {
@@ -289,24 +299,22 @@ document.addEventListener('DOMContentLoaded', async function() {
                 .eq('user_id', userId);
             
             if (error) throw error;
-            
             alert('Gebruiker verwijderd');
             laadGebruikers();
             laadChauffeurs();
-            
         } catch (err) {
-            alert('Fout bij verwijderen: ' + err.message);
+            alert('Fout: ' + err.message);
         }
     }
     
-    // Nieuwe gebruiker
+    // Nieuwe gebruiker knop
     if (addUserBtn) {
         addUserBtn.addEventListener('click', () => {
             currentUserId = null;
             userPopupTitle.textContent = 'Nieuwe gebruiker';
             document.getElementById('userGebruikersnaam').value = '';
-            document.getElementById('userEmail').value = '';
             document.getElementById('userEmail').disabled = false;
+            document.getElementById('userEmail').value = '';
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = true;
             document.getElementById('userRol').value = 'gebruiker';
@@ -318,13 +326,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
+    // Toon/verberg chauffeur velden
     if (userIsChauffeur) {
         userIsChauffeur.addEventListener('change', (e) => {
             chauffeurVelden.style.display = e.target.value === 'true' ? 'block' : 'none';
         });
     }
     
-    // Opslaan gebruiker
+    // Opslaan gebruiker (met sessie behoud)
     if (saveUserBtn) {
         saveUserBtn.addEventListener('click', async () => {
             const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
@@ -342,6 +351,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             try {
                 if (currentUserId) {
+                    // Update bestaande gebruiker
                     const { error } = await window.supabase
                         .from('gebruikers_rollen')
                         .update({
@@ -357,17 +367,38 @@ document.addEventListener('DOMContentLoaded', async function() {
                     alert('Gebruiker bijgewerkt');
                     
                 } else {
+                    // Nieuwe gebruiker - bewaar huidige sessie
                     if (!email || !password || password.length < 6) {
                         alert('E-mail en wachtwoord (min. 6 tekens) zijn verplicht');
                         return;
                     }
                     
+                    // Controleer of gebruikersnaam uniek is
+                    const { data: bestaand } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .select('gebruikersnaam')
+                        .eq('gebruikersnaam', gebruikersnaam);
+                    
+                    if (bestaand && bestaand.length > 0) {
+                        alert('Deze gebruikersnaam bestaat al');
+                        return;
+                    }
+                    
+                    // Bewaar de huidige sessie voordat we een nieuwe gebruiker maken
+                    const { data: { session: huidigeSessie } } = await window.supabase.auth.getSession();
+                    
+                    // Maak nieuwe account aan
                     const { data: authData, error: authError } = await window.supabase.auth.signUp({
                         email: email,
                         password: password
                     });
                     
                     if (authError) throw authError;
+                    
+                    // Herstel de oude sessie (blijf ingelogd als admin)
+                    if (huidigeSessie) {
+                        await window.supabase.auth.setSession(huidigeSessie);
+                    }
                     
                     if (authData.user) {
                         const { error: rolError } = await window.supabase
@@ -396,12 +427,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
+    // Sluit popup
     if (closeUserPopup) {
         closeUserPopup.addEventListener('click', () => {
             userPopup.style.display = 'none';
         });
     }
     
+    // Startpunt opslaan
     if (saveStartpuntBtn) {
         saveStartpuntBtn.addEventListener('click', () => {
             localStorage.setItem('abbott_startpunt', JSON.stringify({ adres: startpuntInstelling.value }));
@@ -464,18 +497,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
+    // Klik buiten popup sluiten
     window.addEventListener('click', (e) => {
-        if (e.target === userPopup) userPopup.style.display = 'none';
+        if (e.target === userPopup) {
+            userPopup.style.display = 'none';
+        }
     });
     
-    // Initialiseer
+    // Start
     laadGebruikers();
     laadStatistieken();
     
-    const opgeslagenStartpunt = localStorage.getItem('abbott_startpunt');
-    if (opgeslagenStartpunt && startpuntInstelling) {
+    const savedStartpunt = localStorage.getItem('abbott_startpunt');
+    if (savedStartpunt && startpuntInstelling) {
         try {
-            const parsed = JSON.parse(opgeslagenStartpunt);
+            const parsed = JSON.parse(savedStartpunt);
             startpuntInstelling.value = parsed.adres;
         } catch(e) {}
     }
