@@ -10,16 +10,16 @@
     <div class="login-container">
         <div class="login-box">
             <h1>🏥 Abbott Platform</h1>
-            <p>Log in met je gebruikersnaam</p>
+            <p>Log in met je e-mailadres</p>
             
             <div class="login-tabs">
                 <button class="tab-btn active" id="loginTabBtn">Inloggen</button>
                 <button class="tab-btn" id="registerTabBtn">Account aanmaken</button>
             </div>
             
-            <!-- Inlogformulier met gebruikersnaam -->
+            <!-- Inlogformulier -->
             <div id="loginForm" class="login-form active">
-                <input type="text" id="loginUsername" placeholder="Gebruikersnaam" required>
+                <input type="email" id="loginEmail" placeholder="E-mailadres" required>
                 <input type="password" id="loginPassword" placeholder="Wachtwoord" required>
                 <button id="loginBtn" class="btn btn-primary">Inloggen</button>
                 <a href="#" id="forgotPasswordLink" class="forgot-link">Wachtwoord vergeten?</a>
@@ -27,8 +27,8 @@
             
             <!-- Registratieformulier -->
             <div id="registerForm" class="login-form">
-                <input type="text" id="registerUsername" placeholder="Gebruikersnaam *" required>
-                <input type="email" id="registerEmail" placeholder="E-mailadres *" required>
+                <input type="text" id="registerUsername" placeholder="Gebruikersnaam" required>
+                <input type="email" id="registerEmail" placeholder="E-mailadres" required>
                 <input type="password" id="registerPassword" placeholder="Wachtwoord (minimaal 6 tekens)" required>
                 <button id="registerBtn" class="btn btn-primary">Account aanmaken</button>
             </div>
@@ -40,8 +40,8 @@
     <div id="resetPopup" class="popup">
         <div class="popup-content">
             <h3>Wachtwoord opnieuw instellen</h3>
-            <input type="text" id="resetUsername" placeholder="Gebruikersnaam" required>
-            <button id="resetBtn" class="btn btn-primary">Stuur resetlink naar e-mail</button>
+            <input type="email" id="resetEmail" placeholder="E-mailadres" required>
+            <button id="resetBtn" class="btn btn-primary">Stuur resetlink</button>
             <button id="closePopup" class="btn btn-secondary">Annuleren</button>
         </div>
     </div>

@@ -1,4 +1,4 @@
-// ===== AUTHENTICATIE FUNCTIES MET GEBRUIKERSNAAM =====
+// ===== AUTHENTICATIE FUNCTIES (MET E-MAIL) =====
 
 console.log('auth.js geladen');
 
@@ -34,21 +34,6 @@ window.addEventListener('load', function() {
         }
     }
     
-    // Hulpfunctie: zoek e-mailadres bij gebruikersnaam
-    async function getEmailByUsername(gebruikersnaam) {
-        const { data, error } = await window.supabase
-            .from('gebruikers_rollen')
-            .select('user_id')
-            .eq('gebruikersnaam', gebruikersnaam)
-            .single();
-        
-        if (error || !data) return null;
-        
-        // Gebruiker ophalen via Auth API (werkt alleen voor ingelogde admins, dus beperkt)
-        // Voor nu: we gebruiken een workaround
-        return data.user_id;
-    }
-    
     // Tabbladen
     if (loginTabBtn && registerTabBtn) {
         loginTabBtn.onclick = () => {
@@ -66,7 +51,7 @@ window.addEventListener('load', function() {
         };
     }
     
-    // REGISTREREN (met gebruikersnaam)
+    // REGISTREREN
     if (registerBtn) {
         registerBtn.onclick = async () => {
             const gebruikersnaam = document.getElementById('registerUsername').value;
@@ -80,17 +65,6 @@ window.addEventListener('load', function() {
             
             if (password.length < 6) {
                 toonBericht('message', 'Wachtwoord moet minimaal 6 tekens zijn', 'error');
-                return;
-            }
-            
-            // Check of gebruikersnaam al bestaat
-            const { data: bestaandeUser, error: checkError } = await window.supabase
-                .from('gebruikers_rollen')
-                .select('gebruikersnaam')
-                .eq('gebruikersnaam', gebruikersnaam);
-            
-            if (bestaandeUser && bestaandeUser.length > 0) {
-                toonBericht('message', 'Deze gebruikersnaam is al in gebruik', 'error');
                 return;
             }
             
@@ -116,7 +90,7 @@ window.addEventListener('load', function() {
                     
                     if (rolError) throw rolError;
                     
-                    toonBericht('message', 'Account aangemaakt! Je kunt nu inloggen met je gebruikersnaam.', 'success');
+                    toonBericht('message', 'Account aangemaakt! Je kunt nu inloggen.', 'success');
                     document.getElementById('registerUsername').value = '';
                     document.getElementById('registerEmail').value = '';
                     document.getElementById('registerPassword').value = '';
@@ -128,37 +102,31 @@ window.addEventListener('load', function() {
         };
     }
     
-    // INLOGGEN met gebruikersnaam
+    // INLOGGEN (met e-mail)
     if (loginBtn) {
         loginBtn.onclick = async () => {
-            const gebruikersnaam = document.getElementById('loginUsername').value;
+            const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
             
-            if (!gebruikersnaam || !password) {
-                toonBericht('message', 'Vul gebruikersnaam en wachtwoord in', 'error');
+            if (!email || !password) {
+                toonBericht('message', 'Vul e-mail en wachtwoord in', 'error');
                 return;
             }
             
             try {
-                // Zoek e-mail bij gebruikersnaam
-                const { data: userData, error: userError } = await window.supabase
-                    .from('gebruikers_rollen')
-                    .select('user_id')
-                    .eq('gebruikersnaam', gebruikersnaam)
-                    .single();
+                const { data, error } = await window.supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
                 
-                if (userError || !userData) {
-                    toonBericht('message', 'Gebruikersnaam niet gevonden', 'error');
-                    return;
+                if (error) {
+                    toonBericht('message', error.message, 'error');
+                } else {
+                    toonBericht('message', 'Ingelogd! Doorsturen...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
                 }
-                
-                // We hebben de user_id, maar we hebben het e-mailadres nodig om in te loggen
-                // Workaround: we moeten het e-mailadres opslaan bij registratie
-                toonBericht('message', 'Inloggen met gebruikersnaam is in ontwikkeling...', 'error');
-                
-                // TODO: Voor nu: gebruik het e-mailadres dat bij registratie is opgeslagen
-                // Dit vereist dat we email opslaan in de gebruikers_rollen tabel
-                
             } catch (err) {
                 toonBericht('message', 'Fout: ' + err.message, 'error');
             }
@@ -181,29 +149,23 @@ window.addEventListener('load', function() {
     
     if (resetBtn) {
         resetBtn.onclick = async () => {
-            const gebruikersnaam = document.getElementById('resetUsername').value;
-            
-            if (!gebruikersnaam) {
-                alert('Vul je gebruikersnaam in');
+            const email = document.getElementById('resetEmail').value;
+            if (!email) {
+                alert('Vul je e-mailadres in');
                 return;
             }
             
             try {
-                const { data: userData, error: userError } = await window.supabase
-                    .from('gebruikers_rollen')
-                    .select('user_id')
-                    .eq('gebruikersnaam', gebruikersnaam)
-                    .single();
+                const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + '/Abbott-project/reset-password.html'
+                });
                 
-                if (userError || !userData) {
-                    alert('Gebruikersnaam niet gevonden');
-                    return;
+                if (error) {
+                    alert('Fout: ' + error.message);
+                } else {
+                    alert('Resetlink verzonden! Controleer je e-mail.');
+                    if (resetPopup) resetPopup.style.display = 'none';
                 }
-                
-                // TODO: Stuur resetlink naar gekoppeld e-mailadres
-                alert('Resetlink wordt verzonden naar het gekoppelde e-mailadres');
-                if (resetPopup) resetPopup.style.display = 'none';
-                
             } catch (err) {
                 alert('Fout: ' + err.message);
             }
