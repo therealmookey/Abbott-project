@@ -1018,3 +1018,214 @@ hr {
     border-radius: 8px;
     font-size: 1rem;
 }
+/* ===== PLANNING TABS ===== */
+.planning-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.planning-tabs .tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #6c757d;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+}
+
+.planning-tabs .tab-btn:hover {
+    background-color: #f8f9fa;
+    color: #2c7da0;
+}
+
+.planning-tabs .tab-btn.active {
+    color: #2c7da0;
+    border-bottom: 3px solid #2c7da0;
+    font-weight: 600;
+}
+
+.planning-tab {
+    display: none;
+}
+
+.planning-tab.active {
+    display: block;
+}
+
+/* ===== ROUTE PLANNER ===== */
+.route-controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    align-items: flex-end;
+}
+
+.route-date-selector,
+.route-chauffeur-selector {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+}
+
+.route-date-selector label,
+.route-chauffeur-selector label {
+    font-weight: 600;
+    color: #2c7da0;
+    margin: 0;
+}
+
+.route-resultaat {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.route-header-summary {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #2c7da0;
+}
+
+.route-header-summary h4 {
+    color: #2c7da0;
+    margin-bottom: 0.5rem;
+}
+
+.route-header-summary p {
+    margin: 0.25rem 0;
+    color: #495057;
+}
+
+.route-stops-list {
+    margin-bottom: 1.5rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.route-stop {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.route-stop:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stop-number {
+    width: 32px;
+    height: 32px;
+    background: #2c7da0;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.stop-details {
+    flex: 1;
+}
+
+.stop-details strong {
+    color: #2c7da0;
+    font-size: 1rem;
+}
+
+.stop-type {
+    display: inline-block;
+    background: #e9ecef;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 6px;
+}
+
+.stop-opmerking {
+    margin-top: 8px;
+    padding: 8px;
+    background: #fff3cd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #856404;
+}
+
+.route-actions-bottom {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+/* ===== WHATSAPP POPUP ===== */
+.whatsapp-popup {
+    max-width: 550px;
+}
+
+.whatsapp-popup textarea {
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+/* ===== RESPONSIVE ROUTE PLANNER ===== */
+@media (max-width: 768px) {
+    .route-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .route-date-selector,
+    .route-chauffeur-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .route-date-selector .btn,
+    .route-chauffeur-selector .btn {
+        width: 100%;
+    }
+    
+    .route-stop {
+        flex-direction: column;
+    }
+    
+    .stop-number {
+        align-self: flex-start;
+    }
+    
+    .route-actions-bottom {
+        flex-direction: column;
+    }
+    
+    .route-actions-bottom .btn {
+        width: 100%;
+    }
+    
+    .planning-tabs .tab-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+}

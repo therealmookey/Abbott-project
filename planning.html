@@ -4,37 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planning - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=12">
+    <link rel="stylesheet" href="css/style.css?v=15">
 </head>
 <body>
     <div id="navigatie-placeholder"></div>
     
     <main class="container">
         <div class="page-header">
-            <h1>📅 Ophalingen & Plaatsingen</h1>
+            <h1>📅 Planning & Route Planner</h1>
             <button id="newPlanningBtn" class="btn btn-primary">+ Nieuwe planning</button>
         </div>
         
-        <!-- Filters -->
-        <div class="filter-section">
-            <select id="typeFilter">
-                <option value="alles">Alle types</option>
-                <option value="ophaling">Ophaling</option>
-                <option value="plaatsing">Plaatsing</option>
-            </select>
-            <select id="statusFilter">
-                <option value="alles">Alle statussen</option>
-                <option value="gepland">Gepland</option>
-                <option value="uitgevoerd">Uitgevoerd</option>
-                <option value="geannuleerd">Geannuleerd</option>
-            </select>
-            <input type="date" id="datumFilter" placeholder="Datum">
-            <button id="filterBtn" class="btn btn-secondary">Filter</button>
+        <!-- Tabbladen -->
+        <div class="planning-tabs">
+            <button class="tab-btn active" data-tab="planning">📋 Alle planningen</button>
+            <button class="tab-btn" data-tab="route">🗺️ Route planner</button>
         </div>
         
-        <!-- Planning lijst -->
-        <div id="planningLijst" class="planning-lijst">
-            <p>Laden...</p>
+        <!-- TAB 1: Alle planningen -->
+        <div id="tabPlanning" class="planning-tab active">
+            <!-- Filters -->
+            <div class="filter-section">
+                <select id="typeFilter">
+                    <option value="alles">Alle types</option>
+                    <option value="ophaling">Ophaling</option>
+                    <option value="plaatsing">Plaatsing</option>
+                </select>
+                <select id="statusFilter">
+                    <option value="alles">Alle statussen</option>
+                    <option value="gepland">Gepland</option>
+                    <option value="uitgevoerd">Uitgevoerd</option>
+                    <option value="geannuleerd">Geannuleerd</option>
+                </select>
+                <input type="date" id="datumFilter" placeholder="Datum">
+                <button id="filterBtn" class="btn btn-secondary">Filter</button>
+            </div>
+            
+            <!-- Planning lijst -->
+            <div id="planningLijst" class="planning-lijst">
+                <p>Laden...</p>
+            </div>
+        </div>
+        
+        <!-- TAB 2: Route planner -->
+        <div id="tabRoute" class="planning-tab">
+            <div class="route-planner-header">
+                <h3>🗺️ Automatische route planning</h3>
+                <p>Selecteer een datum om alle geplande ritten te optimaliseren</p>
+            </div>
+            
+            <div class="route-controls">
+                <div class="route-date-selector">
+                    <label>Datum:</label>
+                    <input type="date" id="routeDatum" class="form-input">
+                    <button id="laadRouteBtn" class="btn btn-primary">📅 Route berekenen</button>
+                    <button id="laadKomendeBtn" class="btn btn-secondary">📆 Komende 7 dagen</button>
+                </div>
+                
+                <div class="route-chauffeur-selector">
+                    <label>👨‍✈️ Chauffeur:</label>
+                    <select id="chauffeurSelect" class="form-input">
+                        <option value="">Selecteer een chauffeur...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="routeResultaat" class="route-resultaat">
+                <p>Selecteer een datum om de route te berekenen...</p>
+            </div>
         </div>
     </main>
     
@@ -58,18 +95,14 @@
             <label>Datum *</label>
             <input type="date" id="planningDatum" required>
             
-            <!-- Velden voor ophaling (tonnen ophalen) -->
             <div id="ophalingVelden" style="display: none;">
                 <label>Aantal volle tonnen ophalen</label>
                 <input type="number" id="aantalTonnen" min="1" max="100" value="1" step="1">
-                <small>Aantal plastiek tonnen dat de klant klaar heeft staan</small>
             </div>
             
-            <!-- Velden voor plaatsing (tonnen afleveren) -->
             <div id="plaatsingVelden" style="display: none;">
                 <label>Aantal lege tonnen meenemen</label>
                 <input type="number" id="aantalLegeTonnen" min="1" max="100" value="1" step="1">
-                <small>Aantal lege plastiek tonnen dat de chauffeur moet afleveren</small>
             </div>
             
             <label>Opmerkingen</label>
@@ -78,6 +111,24 @@
             <div style="display: flex; gap: 10px; margin-top: 1rem;">
                 <button id="savePlanningBtn" class="btn btn-primary">Opslaan</button>
                 <button id="closePlanningPopup" class="btn btn-secondary">Annuleren</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- WhatsApp popup -->
+    <div id="whatsappPopup" class="popup">
+        <div class="popup-content whatsapp-popup">
+            <h3>📱 Stuur route naar chauffeur</h3>
+            
+            <div class="route-bericht">
+                <h4>📝 WhatsApp bericht</h4>
+                <textarea id="whatsappBericht" rows="12" readonly style="width:100%; padding:10px; border-radius:8px; font-family:monospace; font-size:12px;"></textarea>
+            </div>
+            
+            <div class="route-actions">
+                <button id="sendWhatsAppBtn" class="btn btn-primary">📱 Verstuur via WhatsApp</button>
+                <button id="copyBerichtBtn" class="btn btn-secondary">📋 Kopieer bericht</button>
+                <button id="closeWhatsappPopup" class="btn btn-secondary">Sluiten</button>
             </div>
         </div>
     </div>
