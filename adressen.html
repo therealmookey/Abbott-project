@@ -4,28 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adressen - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=6">
+    <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
     <div id="navigatie-placeholder"></div>
     
     <main class="container">
         <div class="page-header">
-            <h1>📍 Adressen</h1>
-            <div class="header-buttons">
-                <button id="routeBtn" class="btn btn-primary">🗺️ Route genereren (0 geselecteerd)</button>
-                <button id="addAddressBtn" class="btn btn-secondary">+ Nieuw adres toevoegen</button>
-            </div>
+            <h1>📍 Adressen database</h1>
+            <button id="addAddressBtn" class="btn btn-primary">+ Nieuw adres toevoegen</button>
         </div>
         
         <!-- Zoekbalk -->
         <div class="search-section">
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="🔍 Zoeken op instelling, adres, plaats, contactpersoon..." class="search-input">
+                <input type="text" id="searchInput" placeholder="🔍 Zoeken..." class="search-input">
                 <button id="clearSearchBtn" class="btn btn-secondary">✖ Wissen</button>
-            </div>
-            <div class="search-info">
-                <span id="searchResultCount"></span>
             </div>
         </div>
         
@@ -56,41 +50,6 @@
             <div style="display: flex; gap: 10px; margin-top: 1rem;">
                 <button id="saveAddressBtn" class="btn btn-primary">Opslaan</button>
                 <button id="closeAddressPopup" class="btn btn-secondary">Annuleren</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Route popup voor print/export -->
-        <!-- Route popup voor print/export -->
-    <div id="routePopup" class="popup">
-        <div class="popup-content route-popup print-optimized">
-            <div class="route-header">
-                <h3>🚚 Routeplanning Abbott</h3>
-                <p>Datum: <span id="routeDatum"></span></p>
-                <button id="printRouteBtn" class="btn btn-primary print-hide">🖨️ Print route</button>
-                <button id="closeRoutePopupBtn" class="btn btn-secondary print-hide">Sluiten</button>
-            </div>
-            
-            <div class="route-start">
-                <h4>📍 Startpunt (magazijn/standplaats)</h4>
-                <div class="startpunt-input-group">
-                    <input type="text" id="startpuntInput" class="startpunt-input" placeholder="Bijv. Magazijn Antwerpen, België">
-                    <button id="startpuntOpslaanBtn" class="btn btn-secondary">💾 Opslaan</button>
-                    <button id="startpuntResetBtn" class="btn btn-secondary">↺ Reset</button>
-                </div>
-                <p id="startpuntWeergave" class="startpunt-weergave">Magazijn / Standplaats</p>
-            </div>
-            
-            <div class="route-stops">
-                <h4>📋 Te bezoeken locaties (geoptimaliseerde volgorde)</h4>
-                <div id="routeLocationsList" class="route-list">
-                    <p>Geen locaties geselecteerd</p>
-                </div>
-            </div>
-            
-            <div class="route-summary">
-                <h4>📊 Samenvatting</h4>
-                <p>Aantal stops: <span id="aantalStops">0</span></p>
             </div>
         </div>
     </div>
