@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=8">
+    <link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
     <div id="navigatie-placeholder"></div>
@@ -26,7 +26,7 @@
         <div id="tabGebruikers" class="admin-tab active">
             <div class="search-section">
                 <div class="search-bar">
-                    <input type="text" id="searchUserInput" placeholder="🔍 Zoeken op e-mail, naam..." class="search-input">
+                    <input type="text" id="searchUserInput" placeholder="🔍 Zoeken op gebruikersnaam, e-mail, rol..." class="search-input">
                     <button id="clearUserSearchBtn" class="btn btn-secondary">✖ Wissen</button>
                 </div>
             </div>
@@ -72,6 +72,9 @@
     <div id="userPopup" class="popup">
         <div class="popup-content">
             <h3 id="userPopupTitle">Nieuwe gebruiker</h3>
+            
+            <label>Gebruikersnaam *</label>
+            <input type="text" id="userGebruikersnaam" placeholder="gebruikersnaam" required>
             
             <label>E-mailadres *</label>
             <input type="email" id="userEmail" placeholder="gebruiker@voorbeeld.nl" required>

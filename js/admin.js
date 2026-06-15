@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES =====
+// ===== ADMIN FUNCTIES MET GEBRUIKERSNAAM =====
 
 console.log('admin.js geladen');
 
@@ -18,21 +18,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     console.log('Ingelogde user ID:', user.id);
     
-    // Check admin status - de query geeft een ARRAY terug
+    // Check admin status
     const { data: userRollen, error: rolError } = await window.supabase
         .from('gebruikers_rollen')
         .select('rol')
         .eq('user_id', user.id);
     
-    console.log('User rollen (array):', userRollen);
+    console.log('User rollen:', userRollen);
     
-    // Check of de gebruiker admin is (kijk in de array)
     let isAdmin = false;
     if (userRollen && userRollen.length > 0) {
         isAdmin = (userRollen[0].rol === 'admin');
     }
-    
-    console.log('Is admin?', isAdmin);
     
     if (!isAdmin) {
         alert('Je hebt geen toegang tot deze pagina. Alleen admins kunnen hier komen.');
@@ -41,8 +38,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     console.log('✅ Admin toegang verleend!');
-    
-    // =========== DE REST VAN HET ADMIN PANEL ===========
     
     // DOM elementen
     const addUserBtn = document.getElementById('addUserBtn');
@@ -70,6 +65,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     let huidigeUserZoekterm = '';
     let huidigeChauffeurZoekterm = '';
     
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     // Haal alle gebruikers op
     async function laadGebruikers() {
         if (!gebruikersLijst) return;
@@ -92,33 +94,50 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = rollen.length;
             
+            // Filter op zoekterm
+            let gefilterdeRollen = rollen;
+            if (huidigeUserZoekterm) {
+                const term = huidigeUserZoekterm.toLowerCase();
+                gefilterdeRollen = rollen.filter(rol => 
+                    (rol.gebruikersnaam && rol.gebruikersnaam.toLowerCase().includes(term)) ||
+                    (rol.user_id && rol.user_id.toLowerCase().includes(term)) ||
+                    (rol.rol && rol.rol.toLowerCase().includes(term))
+                );
+            }
+            
             let html = `
-                <table>
+                <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
                     <thead>
-                        <tr>
-                            <th>User ID</th>
-                            <th>Rol</th>
-                            <th>Chauffeur</th>
-                            <th>Chauffeursnummer</th>
-                            <th>Telefoon</th>
-                            <th>Aangemaakt</th>
-                            <th>Acties</th>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
+                            <th style="padding: 12px; text-align: left;">E-mail</th>
+                            <th style="padding: 12px; text-align: left;">Rol</th>
+                            <th style="padding: 12px; text-align: left;">Chauffeur</th>
+                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
+                            <th style="padding: 12px; text-align: left;">Telefoon</th>
+                            <th style="padding: 12px; text-align: left;">Aangemaakt</th>
+                            <th style="padding: 12px; text-align: left;">Acties</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
             
-            for (const rol of rollen) {
+            for (const rol of gefilterdeRollen) {
+                // E-mail kunnen we niet makkelijk ophalen via de client, dus tonen we een placeholder
+                const emailDisplay = rol.user_id === user.id ? 'Jouw account' : rol.user_id.substring(0, 8) + '...@email';
+                
                 html += `
-                    <tr data-userid="${rol.user_id}">
-                        <td>${rol.user_id.substring(0, 8)}...</td>
-                        <td>${rol.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
-                        <td>${rol.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
-                        <td>${rol.chauffeur_nummer || '-'}</td>
-                        <td>${rol.chauffeur_telefoon || '-'}</td>
-                        <td>${new Date(rol.created_at).toLocaleDateString('nl-NL')}</td>
-                        <td class="admin-buttons">
-                            <button class="btn btn-secondary edit-user-btn" data-userid="${rol.user_id}">✏️ Bewerken</button>
+                    <tr style="border-bottom: 1px solid #e9ecef;" data-userid="${rol.user_id}">
+                        <td style="padding: 12px;"><strong>${escapeHtml(rol.gebruikersnaam || '-')}</strong></td>
+                        <td style="padding: 12px;">${escapeHtml(emailDisplay)}</td>
+                        <td style="padding: 12px;">${rol.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
+                        <td style="padding: 12px;">${rol.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
+                        <td style="padding: 12px;">${rol.chauffeur_nummer || '-'}</td>
+                        <td style="padding: 12px;">${rol.chauffeur_telefoon || '-'}</td>
+                        <td style="padding: 12px;">${new Date(rol.created_at).toLocaleDateString('nl-NL')}</td>
+                        <td style="padding: 12px;" class="admin-buttons">
+                            <button class="btn btn-secondary edit-user-btn" data-userid="${rol.user_id}" style="margin-right: 5px;">✏️ Bewerken</button>
                             <button class="btn btn-danger delete-user-btn" data-userid="${rol.user_id}">🗑️ Verwijderen</button>
                         </td>
                     </tr>
@@ -128,6 +147,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             html += `
                     </tbody>
                 </table>
+                </div>
             `;
             
             gebruikersLijst.innerHTML = html;
@@ -166,14 +186,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             let html = `
-                <table>
+                <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
                     <thead>
-                        <tr>
-                            <th>Chauffeursnummer</th>
-                            <th>User ID</th>
-                            <th>Telefoon</th>
-                            <th>Rol</th>
-                            <th>Acties</th>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
+                            <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
+                            <th style="padding: 12px; text-align: left;">Telefoon</th>
+                            <th style="padding: 12px; text-align: left;">Rol</th>
+                            <th style="padding: 12px; text-align: left;">Acties</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -181,12 +202,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             for (const chauffeur of chauffeurs) {
                 html += `
-                    <tr>
-                        <td>${chauffeur.chauffeur_nummer || '-'}</td>
-                        <td>${chauffeur.user_id.substring(0, 8)}...</td>
-                        <td>${chauffeur.chauffeur_telefoon || '-'}</td>
-                        <td>${chauffeur.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
-                        <td class="admin-buttons">
+                    <tr style="border-bottom: 1px solid #e9ecef;" data-userid="${chauffeur.user_id}">
+                        <td style="padding: 12px;">${escapeHtml(chauffeur.chauffeur_nummer || '-')}</td>
+                        <td style="padding: 12px;"><strong>${escapeHtml(chauffeur.gebruikersnaam || '-')}</strong></td>
+                        <td style="padding: 12px;">${escapeHtml(chauffeur.chauffeur_telefoon || '-')}</td>
+                        <td style="padding: 12px;">${chauffeur.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
+                        <td style="padding: 12px;" class="admin-buttons">
                             <button class="btn btn-secondary edit-chauffeur-btn" data-userid="${chauffeur.user_id}">✏️ Bewerken</button>
                         </td>
                     </tr>
@@ -196,6 +217,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             html += `
                     </tbody>
                 </table>
+                </div>
             `;
             
             chauffeursLijst.innerHTML = html;
@@ -238,6 +260,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (error) throw error;
             
+            document.getElementById('userGebruikersnaam').value = data.gebruikersnaam || '';
             document.getElementById('userEmail').value = '';
             document.getElementById('userEmail').disabled = true;
             document.getElementById('userEmail').placeholder = 'E-mail niet bewerkbaar';
@@ -261,7 +284,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Gebruiker verwijderen
     async function verwijderGebruiker(userId) {
-        if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) return;
+        if (userId === user.id) {
+            alert('Je kunt jezelf niet verwijderen!');
+            return;
+        }
+        
+        if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
         
         try {
             const { error } = await window.supabase
@@ -285,6 +313,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         addUserBtn.addEventListener('click', () => {
             currentUserId = null;
             userPopupTitle.textContent = 'Nieuwe gebruiker';
+            document.getElementById('userGebruikersnaam').value = '';
             document.getElementById('userEmail').value = '';
             document.getElementById('userEmail').disabled = false;
             document.getElementById('userPassword').value = '';
@@ -308,6 +337,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Opslaan gebruiker
     if (saveUserBtn) {
         saveUserBtn.addEventListener('click', async () => {
+            const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
             const email = document.getElementById('userEmail').value;
             const password = document.getElementById('userPassword').value;
             const rol = document.getElementById('userRol').value;
@@ -315,33 +345,52 @@ document.addEventListener('DOMContentLoaded', async function() {
             const chauffeurNummer = document.getElementById('chauffeurNummer').value;
             const chauffeurTelefoon = document.getElementById('chauffeurTelefoon').value;
             
-            if (!email) {
-                alert('E-mailadres is verplicht');
+            if (!gebruikersnaam) {
+                alert('Gebruikersnaam is verplicht');
                 return;
             }
             
-            if (!currentUserId && (!password || password.length < 6)) {
-                alert('Wachtwoord is verplicht en moet minimaal 6 tekens bevatten');
+            if (!currentUserId && !email) {
+                alert('E-mailadres is verplicht voor nieuwe gebruikers');
                 return;
             }
             
             try {
                 if (currentUserId) {
                     // Update bestaande gebruiker
+                    const updateData = {
+                        gebruikersnaam: gebruikersnaam,
+                        rol: rol,
+                        is_chauffeur: isChauffeur,
+                        chauffeur_nummer: chauffeurNummer || null,
+                        chauffeur_telefoon: chauffeurTelefoon || null
+                    };
+                    
                     const { error } = await window.supabase
                         .from('gebruikers_rollen')
-                        .update({
-                            rol: rol,
-                            is_chauffeur: isChauffeur,
-                            chauffeur_nummer: chauffeurNummer || null,
-                            chauffeur_telefoon: chauffeurTelefoon || null
-                        })
+                        .update(updateData)
                         .eq('user_id', currentUserId);
                     
                     if (error) throw error;
                     alert('Gebruiker bijgewerkt');
                     
                 } else {
+                    // Controleer of gebruikersnaam uniek is
+                    const { data: bestaande, error: checkError } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .select('gebruikersnaam')
+                        .eq('gebruikersnaam', gebruikersnaam);
+                    
+                    if (bestaande && bestaande.length > 0) {
+                        alert('Deze gebruikersnaam is al in gebruik');
+                        return;
+                    }
+                    
+                    if (!password || password.length < 6) {
+                        alert('Wachtwoord is verplicht en moet minimaal 6 tekens bevatten');
+                        return;
+                    }
+                    
                     // Nieuwe gebruiker aanmaken
                     const { data: authData, error: authError } = await window.supabase.auth.signUp({
                         email: email,
@@ -355,6 +404,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             .from('gebruikers_rollen')
                             .insert([{
                                 user_id: authData.user.id,
+                                gebruikersnaam: gebruikersnaam,
                                 rol: rol,
                                 is_chauffeur: isChauffeur,
                                 chauffeur_nummer: chauffeurNummer || null,
@@ -362,7 +412,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             }]);
                         
                         if (rolError) throw rolError;
-                        alert(`Gebruiker ${email} aangemaakt!`);
+                        alert(`Gebruiker ${gebruikersnaam} aangemaakt!`);
                     }
                 }
                 
@@ -383,6 +433,39 @@ document.addEventListener('DOMContentLoaded', async function() {
             const startpunt = startpuntInstelling.value;
             localStorage.setItem('abbott_startpunt', JSON.stringify({ adres: startpunt }));
             alert('Startpunt opgeslagen!');
+        });
+    }
+    
+    // Zoek functionaliteit
+    if (searchUserInput) {
+        searchUserInput.addEventListener('input', (e) => {
+            huidigeUserZoekterm = e.target.value;
+            laadGebruikers();
+        });
+    }
+    
+    if (clearUserSearchBtn) {
+        clearUserSearchBtn.addEventListener('click', () => {
+            searchUserInput.value = '';
+            huidigeUserZoekterm = '';
+            laadGebruikers();
+            searchUserInput.focus();
+        });
+    }
+    
+    if (searchChauffeurInput) {
+        searchChauffeurInput.addEventListener('input', (e) => {
+            huidigeChauffeurZoekterm = e.target.value;
+            laadChauffeurs();
+        });
+    }
+    
+    if (clearChauffeurSearchBtn) {
+        clearChauffeurSearchBtn.addEventListener('click', () => {
+            searchChauffeurInput.value = '';
+            huidigeChauffeurZoekterm = '';
+            laadChauffeurs();
+            searchChauffeurInput.focus();
         });
     }
     
@@ -424,13 +507,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             userPopup.style.display = 'none';
         }
     });
-    
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
     
     // Initialiseer
     laadGebruikers();
