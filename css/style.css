@@ -839,3 +839,46 @@ mark {
         text-align: center;
     }
 }
+/* ===== STARTPUNT STIJLEN ===== */
+.startpunt-input-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.startpunt-input {
+    flex: 2;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.startpunt-weergave {
+    background-color: #e8f4f8;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin: 10px 0 0 0;
+    font-size: 0.9rem;
+    color: #2c7da0;
+}
+
+.route-start-item {
+    background-color: #e8f4f8 !important;
+    border-left: 4px solid #2c7da0;
+}
+
+.route-start-item strong {
+    color: #2c7da0;
+}
+
+@media (max-width: 768px) {
+    .startpunt-input-group {
+        flex-direction: column;
+    }
+    
+    .startpunt-input-group button {
+        width: 100%;
+    }
+}
