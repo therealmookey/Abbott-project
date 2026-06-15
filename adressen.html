@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adressen - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
     <div id="navigatie-placeholder"></div>
@@ -12,7 +12,10 @@
     <main class="container">
         <div class="page-header">
             <h1>📍 Adressen</h1>
-            <button id="addAddressBtn" class="btn btn-primary">+ Nieuw adres toevoegen</button>
+            <div class="header-buttons">
+                <button id="routeBtn" class="btn btn-primary">🗺️ Route genereren (0 geselecteerd)</button>
+                <button id="addAddressBtn" class="btn btn-secondary">+ Nieuw adres toevoegen</button>
+            </div>
         </div>
         
         <!-- Zoekbalk -->
@@ -53,6 +56,36 @@
             <div style="display: flex; gap: 10px; margin-top: 1rem;">
                 <button id="saveAddressBtn" class="btn btn-primary">Opslaan</button>
                 <button id="closeAddressPopup" class="btn btn-secondary">Annuleren</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Route popup voor print/export -->
+    <div id="routePopup" class="popup">
+        <div class="popup-content route-popup print-optimized">
+            <div class="route-header">
+                <h3>🚚 Routeplanning Abbott</h3>
+                <p>Datum: <span id="routeDatum"></span></p>
+                <button id="printRouteBtn" class="btn btn-primary print-hide">🖨️ Print route</button>
+                <button id="closeRoutePopupBtn" class="btn btn-secondary print-hide">Sluiten</button>
+            </div>
+            
+            <div class="route-start">
+                <h4>📍 Vertrekpunt</h4>
+                <p id="startpuntWeergave">Magazijn / Standplaats</p>
+            </div>
+            
+            <div class="route-stops">
+                <h4>📋 Te bezoeken locaties (geoptimaliseerde volgorde)</h4>
+                <div id="routeLocationsList" class="route-list">
+                    <p>Geen locaties geselecteerd</p>
+                </div>
+            </div>
+            
+            <div class="route-summary">
+                <h4>📊 Samenvatting</h4>
+                <p>Aantal stops: <span id="aantalStops">0</span></p>
+                <p>Geschatte rijtijd: <span id="geschatteTijd">-</span></p>
             </div>
         </div>
     </div>
