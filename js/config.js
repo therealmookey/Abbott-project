@@ -3,7 +3,10 @@ const SUPABASE_URL = 'https://jcdqcgviossmrvlgsiqd.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_BhTGDyLsGeHEMConkTeqcg_LHK5pLoG';
 
 
-// Gebruik een andere naam om conflicten te voorkomen
-window.supabaseClient = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Maak de Supabase client direct aan
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Zet hem globaal zodat andere bestanden hem kunnen gebruiken
+window.supabase = supabase;
 
 console.log('✅ Supabase client geladen!');
