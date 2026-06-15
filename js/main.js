@@ -20,12 +20,10 @@ async function laadNavigatie() {
         }
     } catch (error) {
         console.error('Fout bij laden navigatie:', error);
-        // Geen redirect, alleen een foutmelding in de console
-        placeholder.innerHTML = '<nav style="background:#ccc; padding:10px;">Menu laden mislukt</nav>';
+        placeholder.innerHTML = '<nav style="background:#2c7da0; padding:10px; color:white;">Menu laden mislukt</nav>';
     }
 }
 
-// Check alleen of iemand is ingelogd voor beveiligde pagina's
 async function checkAuth() {
     if (typeof window.supabase === 'undefined') {
         return false;
@@ -33,19 +31,18 @@ async function checkAuth() {
     
     const { data: { session } } = await window.supabase.auth.getSession();
     if (!session) {
+        window.location.href = 'index.html';
         return false;
     }
     return true;
 }
 
-// Huidige gebruiker ophalen
 async function getCurrentUser() {
     if (typeof window.supabase === 'undefined') return null;
     const { data: { user } } = await window.supabase.auth.getUser();
     return user;
 }
 
-// Laad navigatie als de DOM klaar is, maar alleen als er een placeholder is.
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('navigatie-placeholder')) {
         laadNavigatie();
