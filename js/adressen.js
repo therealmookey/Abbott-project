@@ -1,14 +1,15 @@
-// ===== ADRESSEN FUNCTIES =====
+// ===== ADRESSEN FUNCTIES MET LIJSTWEGAVE =====
 
 console.log('adressen.js geladen');
 
-window.addEventListener('load', function() {
-    console.log('Pagina geladen, supabase beschikbaar?', !!window.supabase);
+document.addEventListener('DOMContentLoaded', function() {
     
     if (!window.supabase) {
-        console.error('Supabase niet beschikbaar');
+        console.error('Supabase niet beschikbaar!');
         return;
     }
+    
+    console.log('Supabase beschikbaar, start adressen pagina');
     
     const adressenLijst = document.getElementById('adressenLijst');
     const addAddressBtn = document.getElementById('addAddressBtn');
@@ -16,164 +17,214 @@ window.addEventListener('load', function() {
     const saveAddressBtn = document.getElementById('saveAddressBtn');
     const closeAddressPopup = document.getElementById('closeAddressPopup');
     const popupTitle = document.getElementById('popupTitle');
-    const instellingNaam = document.getElementById('instellingNaam');
-    const straat = document.getElementById('straat');
-    const postcode = document.getElementById('postcode');
-    const plaats = document.getElementById('plaats');
-    const telefoon = document.getElementById('telefoon');
     
     let currentAddressId = null;
     
-    // Laad adressen
+    function getValue(id) {
+        const el = document.getElementById(id);
+        return el ? el.value : '';
+    }
+    
+    function setValue(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.value = value || '';
+    }
+    
     async function laadAdressen() {
         if (!adressenLijst) return;
         
-        adressenLijst.innerHTML = '<p>Laden...</p>';
+        console.log('Adressen laden...');
+        adressenLijst.innerHTML = '<p>Bezig met laden...</p>';
         
-        const { data, error } = await window.supabase
-            .from('adressen')
-            .select('*')
-            .order('instelling_naam');
-        
-        if (error) {
-            adressenLijst.innerHTML = `<p class="error">Fout: ${error.message}</p>`;
-            return;
-        }
-        
-        if (!data || data.length === 0) {
-            adressenLijst.innerHTML = '<p>Geen adressen gevonden. Klik op "+ Nieuw adres" om er een toe te voegen.</p>';
-            return;
-        }
-        
-        adressenLijst.innerHTML = '';
-        data.forEach(adres => {
-            const card = document.createElement('div');
-            card.className = 'adres-card';
-            card.innerHTML = `
-                <h3>${escapeHtml(adres.instelling_naam)}</h3>
-                <p>📍 ${escapeHtml(adres.straat)}</p>
-                <p>📮 ${escapeHtml(adres.postcode)} ${escapeHtml(adres.plaats)}</p>
-                ${adres.telefoon ? `<p>📞 ${escapeHtml(adres.telefoon)}</p>` : ''}
-                <div class="adres-buttons">
-                    <button class="btn btn-secondary edit-btn" data-id="${adres.id}">✏️ Bewerken</button>
-                    <button class="btn btn-danger delete-btn" data-id="${adres.id}">🗑️ Verwijderen</button>
-                </div>
+        try {
+            const { data, error } = await window.supabase
+                .from('adressen')
+                .select('*')
+                .order('instelling_naam');
+            
+            if (error) {
+                console.error('Fout bij laden:', error);
+                adressenLijst.innerHTML = `<p class="error">Fout bij laden: ${error.message}</p>`;
+                return;
+            }
+            
+            if (!data || data.length === 0) {
+                adressenLijst.innerHTML = '<p>Geen adressen gevonden. Klik op "+ Nieuw adres" om er een toe te voegen.</p>';
+                return;
+            }
+            
+            // Tabel weergave
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Instelling</th>
+                            <th>Adres</th>
+                            <th>Postcode/Plaats</th>
+                            <th>Contact</th>
+                            <th>Extra info</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
             `;
-            adressenLijst.appendChild(card);
-        });
-        
-        document.querySelectorAll('.edit-btn').forEach(btn => {
-            btn.addEventListener('click', () => bewerkAdres(btn.dataset.id));
-        });
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', () => verwijderAdres(btn.dataset.id));
-        });
+            
+            data.forEach(adres => {
+                html += `
+                    <tr>
+                        <td><strong>${escapeHtml(adres.instelling_naam)}</strong></td>
+                        <td>${escapeHtml(adres.straat)}</td>
+                        <td>${escapeHtml(adres.postcode)}<br>${escapeHtml(adres.plaats)}</td>
+                        <td>${adres.telefoon ? escapeHtml(adres.telefoon) : '-'}</td>
+                        <td>${adres.extra_info ? escapeHtml(adres.extra_info.substring(0, 100)) + (adres.extra_info.length > 100 ? '...' : '') : '-'}</td>
+                        <td class="adres-buttons">
+                            <button class="btn btn-secondary edit-btn" data-id="${adres.id}">✏️ Bewerken</button>
+                            <button class="btn btn-danger delete-btn" data-id="${adres.id}">🗑️ Verwijderen</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            adressenLijst.innerHTML = html;
+            
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => bewerkAdres(btn.dataset.id));
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => verwijderAdres(btn.dataset.id));
+            });
+            
+        } catch (err) {
+            console.error('Exception:', err);
+            adressenLijst.innerHTML = `<p class="error">Fout: ${err.message}</p>`;
+        }
     }
     
-    // Nieuw adres
     if (addAddressBtn) {
-        addAddressBtn.onclick = () => {
+        addAddressBtn.addEventListener('click', () => {
             currentAddressId = null;
             popupTitle.textContent = 'Nieuw adres';
-            instellingNaam.value = '';
-            straat.value = '';
-            postcode.value = '';
-            plaats.value = '';
-            telefoon.value = '';
+            setValue('instellingNaam', '');
+            setValue('straat', '');
+            setValue('postcode', '');
+            setValue('plaats', '');
+            setValue('telefoon', '');
+            setValue('extra_info', '');
             addressPopup.style.display = 'flex';
-        };
+        });
     }
     
-    // Bewerk adres
     async function bewerkAdres(id) {
-        const { data, error } = await window.supabase
-            .from('adressen')
-            .select('*')
-            .eq('id', id)
-            .single();
-        
-        if (error) {
-            alert('Fout: ' + error.message);
-            return;
+        try {
+            const { data, error } = await window.supabase
+                .from('adressen')
+                .select('*')
+                .eq('id', id)
+                .single();
+            
+            if (error) {
+                alert('Fout bij laden: ' + error.message);
+                return;
+            }
+            
+            currentAddressId = id;
+            popupTitle.textContent = 'Adres bewerken';
+            setValue('instellingNaam', data.instelling_naam);
+            setValue('straat', data.straat);
+            setValue('postcode', data.postcode);
+            setValue('plaats', data.plaats);
+            setValue('telefoon', data.telefoon || '');
+            setValue('extra_info', data.extra_info || '');
+            addressPopup.style.display = 'flex';
+        } catch (err) {
+            alert('Fout: ' + err.message);
         }
-        
-        currentAddressId = id;
-        popupTitle.textContent = 'Adres bewerken';
-        instellingNaam.value = data.instelling_naam;
-        straat.value = data.straat;
-        postcode.value = data.postcode;
-        plaats.value = data.plaats;
-        telefoon.value = data.telefoon || '';
-        addressPopup.style.display = 'flex';
     }
     
-    // Opslaan
     if (saveAddressBtn) {
-        saveAddressBtn.onclick = async () => {
-            if (!instellingNaam.value || !straat.value || !postcode.value || !plaats.value) {
+        saveAddressBtn.addEventListener('click', async () => {
+            const instellingNaam = getValue('instellingNaam');
+            const straat = getValue('straat');
+            const postcode = getValue('postcode');
+            const plaats = getValue('plaats');
+            const telefoon = getValue('telefoon');
+            const extra_info = getValue('extra_info');
+            
+            if (!instellingNaam || !straat || !postcode || !plaats) {
                 alert('Vul alle verplichte velden in');
                 return;
             }
             
             const adresData = {
-                instelling_naam: instellingNaam.value,
-                straat: straat.value,
-                postcode: postcode.value,
-                plaats: plaats.value,
-                telefoon: telefoon.value || null
+                instelling_naam: instellingNaam,
+                straat: straat,
+                postcode: postcode,
+                plaats: plaats,
+                telefoon: telefoon || null,
+                extra_info: extra_info || null
             };
             
-            let error;
-            if (currentAddressId) {
-                const result = await window.supabase
-                    .from('adressen')
-                    .update(adresData)
-                    .eq('id', currentAddressId);
-                error = result.error;
-            } else {
-                const result = await window.supabase
-                    .from('adressen')
-                    .insert([adresData]);
-                error = result.error;
+            try {
+                let result;
+                if (currentAddressId) {
+                    result = await window.supabase
+                        .from('adressen')
+                        .update(adresData)
+                        .eq('id', currentAddressId);
+                } else {
+                    result = await window.supabase
+                        .from('adressen')
+                        .insert([adresData]);
+                }
+                
+                if (result.error) {
+                    alert('Fout bij opslaan: ' + result.error.message);
+                } else {
+                    console.log('Opgeslagen! Status:', result.status);
+                    addressPopup.style.display = 'none';
+                    await laadAdressen();
+                }
+            } catch (err) {
+                alert('Fout: ' + err.message);
             }
-            
-            if (error) {
-                alert('Fout: ' + error.message);
-            } else {
-                addressPopup.style.display = 'none';
-                laadAdressen();
-            }
-        };
+        });
     }
     
-    // Verwijderen
     async function verwijderAdres(id) {
         if (!confirm('Weet je zeker dat je dit adres wilt verwijderen?')) return;
         
-        const { error } = await window.supabase
-            .from('adressen')
-            .delete()
-            .eq('id', id);
-        
-        if (error) {
-            alert('Fout: ' + error.message);
-        } else {
-            laadAdressen();
+        try {
+            const { error } = await window.supabase
+                .from('adressen')
+                .delete()
+                .eq('id', id);
+            
+            if (error) {
+                alert('Fout bij verwijderen: ' + error.message);
+            } else {
+                await laadAdressen();
+            }
+        } catch (err) {
+            alert('Fout: ' + err.message);
         }
     }
     
-    // Popup sluiten
     if (closeAddressPopup) {
-        closeAddressPopup.onclick = () => {
+        closeAddressPopup.addEventListener('click', () => {
             addressPopup.style.display = 'none';
-        };
+        });
     }
     
-    window.onclick = (e) => {
+    window.addEventListener('click', (e) => {
         if (e.target === addressPopup) {
             addressPopup.style.display = 'none';
         }
-    };
+    });
     
     function escapeHtml(text) {
         if (!text) return '';
@@ -182,7 +233,6 @@ window.addEventListener('load', function() {
         return div.innerHTML;
     }
     
-    // Start
     laadAdressen();
     
 });
