@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adressen - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=3">
+    <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
     <div id="navigatie-placeholder"></div>
@@ -13,6 +13,17 @@
         <div class="page-header">
             <h1>📍 Adressen</h1>
             <button id="addAddressBtn" class="btn btn-primary">+ Nieuw adres toevoegen</button>
+        </div>
+        
+        <!-- Zoekbalk -->
+        <div class="search-section">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="🔍 Zoeken op instelling, adres, plaats, contactpersoon..." class="search-input">
+                <button id="clearSearchBtn" class="btn btn-secondary">✖ Wissen</button>
+            </div>
+            <div class="search-info">
+                <span id="searchResultCount"></span>
+            </div>
         </div>
         
         <div id="adressenLijst" class="adressen-tabel">
