@@ -1229,3 +1229,13 @@ hr {
         font-size: 0.85rem;
     }
 }
+/* Circulaire route - terugkeer stop */
+.route-stop.route-return {
+    background: #e8f4f8;
+    border: 2px solid #2c7da0;
+}
+
+.route-stop.route-return .stop-number {
+    background: #2c7da0;
+    font-size: 1.2rem;
+}

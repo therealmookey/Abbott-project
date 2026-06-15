@@ -1,4 +1,4 @@
-// ===== PLANNING FUNCTIES MET ROUTE PLANNER =====
+// ===== PLANNING FUNCTIES MET CIRCULAIRE ROUTE PLANNER =====
 
 console.log('planning.js geladen');
 
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Vaste startlocatie
+    // Vaste start- en eindlocatie (circulair)
     const START_LOCATIE = {
         adres: 'Schoonmansveld 48, 2870 Puurs',
         lat: 51.0589,
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return [...geordend, ...zonderCoords];
     }
     
-    // Route berekenen voor een datum
+    // Route berekenen voor een datum (circulair)
     async function berekenRouteVoorDatum(datum) {
         if (!routeResultaat) return;
         
@@ -264,9 +264,10 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = `
             <div class="route-overview">
                 <div class="route-header-summary">
-                    <h4>🗺️ Route voor ${new Date(datum).toLocaleDateString('nl-NL')}</h4>
-                    <p><strong>📍 Vertrek:</strong> ${START_LOCATIE.adres}</p>
+                    <h4>🗺️ CIRCULAIRE ROUTE voor ${new Date(datum).toLocaleDateString('nl-NL')}</h4>
+                    <p><strong>📍 START & EINDE:</strong> ${START_LOCATIE.adres}</p>
                     <p><strong>📋 Aantal stops:</strong> ${geoptimaliseerd.length}</p>
+                    <p><strong>🔄 Type:</strong> Circulaire route (begin en einde op basis)</p>
                 </div>
                 <div class="route-stops-list">
         `;
@@ -293,7 +294,16 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
         
+        // Terugkeer naar basis
         html += `
+                    <div class="route-stop route-return">
+                        <div class="stop-number">🏁</div>
+                        <div class="stop-details">
+                            <strong>TERUGKEER NAAR BASIS</strong><br>
+                            📍 ${START_LOCATIE.adres}<br>
+                            📮 Einde van de rit - lever eventuele lege tonnen in
+                        </div>
+                    </div>
                 </div>
                 <div class="route-actions-bottom">
                     <button id="genereerWhatsAppBtn" class="btn btn-primary">📱 Genereer WhatsApp bericht</button>
@@ -326,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
         laadPlanningen();
     }
     
-    // Toon WhatsApp popup
+    // Toon WhatsApp popup met circulaire route (start en einde op Schoonmansveld 48)
     function toonWhatsappPopup() {
         if (!huidigeRouteData || !huidigeRouteData.planningen || huidigeRouteData.planningen.length === 0) {
             alert('Geen route data beschikbaar.');
@@ -342,8 +352,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const datum = new Date(huidigeRouteData.datum).toLocaleDateString('nl-NL');
         let bericht = `🚚 *ABBOTT ROUTE PLANNING* 🚚\n\n`;
         bericht += `📅 *Datum:* ${datum}\n`;
-        bericht += `📍 *Vertrek:* Schoonmansveld 48, 2870 Puurs\n\n`;
-        bericht += `*📋 ROUTE (${huidigeRouteData.planningen.length} stops)*\n`;
+        bericht += `📍 *START & EINDE:* Schoonmansveld 48, 2870 Puurs\n\n`;
+        bericht += `*📋 CIRCULAIRE ROUTE (${huidigeRouteData.planningen.length} stops)*\n`;
         bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
         
         huidigeRouteData.planningen.forEach((stop, index) => {
@@ -364,14 +374,30 @@ document.addEventListener('DOMContentLoaded', function() {
             bericht += `\n`;
         });
         
+        // Na de laatste stop: terug naar basis
         bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-        bericht += `🗺️ Open in Google Maps:\n`;
-        bericht += `https://www.google.com/maps/dir/Schoonmansveld+48,+2870+Puurs/`;
+        bericht += `${huidigeRouteData.planningen.length + 1}. *TERUGKEER NAAR BASIS*\n`;
+        bericht += `   📍 Schoonmansveld 48, 2870 Puurs\n`;
+        bericht += `   🏁 EINDE RIT\n\n`;
         
+        bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        bericht += `🗺️ Open in Waze (circulaire route):\n`;
+        bericht += `https://www.waze.com/ul?ll=51.0589,4.2863&navigate=yes&q=`;
+        
+        // Voeg alle adressen toe als stops in Waze
         const adressenVoorRoute = huidigeRouteData.planningen.map(stop => 
             encodeURIComponent(`${stop.straat}, ${stop.postcode} ${stop.plaats}`)
         );
+        bericht += adressenVoorRoute.join('&q=');
+        
+        // Voeg ook het eindpunt toe (terug naar basis)
+        bericht += `&q=${encodeURIComponent('Schoonmansveld 48, 2870 Puurs')}`;
+        
+        // Alternatieve Google Maps link voor de zekerheid
+        bericht += `\n\n🗺️ Of open in Google Maps (circulaire route):\n`;
+        bericht += `https://www.google.com/maps/dir/Schoonmansveld+48,+2870+Puurs/`;
         bericht += adressenVoorRoute.join('/');
+        bericht += `/Schoonmansveld+48,+2870+Puurs`;
         
         if (whatsappBericht) whatsappBericht.value = bericht;
         whatsappPopup.style.display = 'flex';
@@ -410,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Laad alle planningen (bestaande functie)
+    // Laad alle planningen
     async function laadPlanningen() {
         if (!planningLijst) return;
         
