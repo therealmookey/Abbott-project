@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - GEOPTIMALISEERD =====
+// ===== ADMIN FUNCTIES - MET CHAUFFEURS ALS FILTER =====
 
 console.log('admin.js geladen');
 
@@ -16,8 +16,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
-    // Snelle admin check
-    const { data: userRollen, error: rolError } = await window.supabase
+    const { data: userRollen } = await window.supabase
         .from('gebruikers_rollen')
         .select('rol')
         .eq('user_id', user.id)
@@ -46,13 +45,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     const searchChauffeurInput = document.getElementById('searchChauffeurInput');
     const clearChauffeurSearchBtn = document.getElementById('clearChauffeurSearchBtn');
     const aantalGebruikersSpan = document.getElementById('aantalGebruikers');
+    const aantalChauffeursSpan = document.getElementById('aantalChauffeurs');
     const aantalAdressenSpan = document.getElementById('aantalAdressen');
     const saveStartpuntBtn = document.getElementById('saveStartpuntBtn');
     const startpuntInstelling = document.getElementById('startpuntInstelling');
     
     let currentUserId = null;
     let alleGebruikers = [];
-    let alleChauffeurs = [];
     let huidigeUserZoekterm = '';
     let huidigeChauffeurZoekterm = '';
     
@@ -63,51 +62,47 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
     
-    // Snelle laad functie voor gebruikers (alleen gebruikers_rollen tabel)
+    // Laad alle gebruikers
     async function laadGebruikers() {
         if (!gebruikersLijst) return;
         
         gebruikersLijst.innerHTML = '<p>Bezig met laden...</p>';
         
         try {
-            // Alleen de rollen tabel ophalen (bevat alle info die we nodig hebben)
-            const { data: rollen, error: rollenError } = await window.supabase
+            const { data: rollen, error } = await window.supabase
                 .from('gebruikers_rollen')
                 .select('*')
                 .order('created_at', { ascending: false });
             
-            if (rollenError) throw rollenError;
+            if (error) throw error;
             
-            if (!rollen || rollen.length === 0) {
-                gebruikersLijst.innerHTML = '<p>Geen gebruikers gevonden.</p>';
-                if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = '0';
-                return;
-            }
+            alleGebruikers = rollen || [];
             
-            if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = rollen.length;
+            if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = alleGebruikers.length;
             
-            // Filteren op zoekterm
-            let gefilterd = rollen;
+            let gefilterd = alleGebruikers;
             if (huidigeUserZoekterm) {
                 const term = huidigeUserZoekterm.toLowerCase();
-                gefilterd = rollen.filter(rol => 
-                    (rol.gebruikersnaam && rol.gebruikersnaam.toLowerCase().includes(term)) ||
-                    (rol.user_id && rol.user_id.toLowerCase().includes(term)) ||
-                    (rol.rol && rol.rol.toLowerCase().includes(term))
+                gefilterd = alleGebruikers.filter(g => 
+                    (g.gebruikersnaam && g.gebruikersnaam.toLowerCase().includes(term))
                 );
             }
             
-            // Tabel direct bouwen (geen extra queries per rij)
+            if (gefilterd.length === 0) {
+                gebruikersLijst.innerHTML = '<p>Geen gebruikers gevonden.</p>';
+                return;
+            }
+            
             let html = `
                 <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background-color: #f8f9fa;">
                             <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
-                            <th style="padding: 12px; text-align: left;">User ID</th>
                             <th style="padding: 12px; text-align: left;">Rol</th>
                             <th style="padding: 12px; text-align: left;">Chauffeur</th>
-                            <th style="padding: 12px; text-align: left;">Nummer</th>
+                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
+                            <th style="padding: 12px; text-align: left;">Telefoon (WhatsApp)</th>
                             <th style="padding: 12px; text-align: left;">Aangemaakt</th>
                             <th style="padding: 12px; text-align: left;">Acties</th>
                         </tr>
@@ -115,18 +110,18 @@ document.addEventListener('DOMContentLoaded', async function() {
                     <tbody>
             `;
             
-            for (const rol of gefilterd) {
+            for (const g of gefilterd) {
                 html += `
-                    <tr style="border-bottom: 1px solid #e9ecef;" data-userid="${rol.user_id}">
-                        <td style="padding: 12px;"><strong>${escapeHtml(rol.gebruikersnaam || '-')}</strong></td>
-                        <td style="padding: 12px; font-size: 0.8rem;">${rol.user_id.substring(0, 13)}...</td>
-                        <td style="padding: 12px;">${rol.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
-                        <td style="padding: 12px;">${rol.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
-                        <td style="padding: 12px;">${rol.chauffeur_nummer || '-'}</td>
-                        <td style="padding: 12px;">${new Date(rol.created_at).toLocaleDateString('nl-NL')}</td>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px;"><strong>${escapeHtml(g.gebruikersnaam || '-')}</strong></td>
+                        <td style="padding: 12px;">${g.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
+                        <td style="padding: 12px;">${g.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
+                        <td style="padding: 12px;">${escapeHtml(g.chauffeur_nummer || '-')}</td>
+                        <td style="padding: 12px;">${escapeHtml(g.chauffeur_telefoon || '-')}</td>
+                        <td style="padding: 12px;">${new Date(g.created_at).toLocaleDateString('nl-NL')}</td>
                         <td style="padding: 12px;">
-                            <button class="btn btn-secondary edit-user-btn" data-userid="${rol.user_id}" style="margin-right: 5px;">✏️</button>
-                            <button class="btn btn-danger delete-user-btn" data-userid="${rol.user_id}">🗑️</button>
+                            <button class="btn btn-secondary edit-user-btn" data-userid="${g.user_id}" style="margin-right: 5px;">✏️</button>
+                            <button class="btn btn-danger delete-user-btn" data-userid="${g.user_id}">🗑️</button>
                         </td>
                     </tr>
                 `;
@@ -140,7 +135,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             gebruikersLijst.innerHTML = html;
             
-            // Event listeners
             document.querySelectorAll('.edit-user-btn').forEach(btn => {
                 btn.addEventListener('click', () => bewerkGebruiker(btn.dataset.userid));
             });
@@ -154,14 +148,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Laad chauffeurs (alleen actieve chauffeurs)
+    // Laad alleen chauffeurs
     async function laadChauffeurs() {
         if (!chauffeursLijst) return;
         
         chauffeursLijst.innerHTML = '<p>Bezig met laden...</p>';
         
         try {
-            // Alleen chauffeurs ophalen uit gebruikers_rollen
             const { data: chauffeurs, error } = await window.supabase
                 .from('gebruikers_rollen')
                 .select('*')
@@ -170,8 +163,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (error) throw error;
             
-            if (!chauffeurs || chauffeurs.length === 0) {
-                chauffeursLijst.innerHTML = '<p>Geen chauffeurs gevonden.</p>';
+            if (aantalChauffeursSpan) aantalChauffeursSpan.textContent = chauffeurs?.length || 0;
+            
+            let gefilterd = chauffeurs || [];
+            if (huidigeChauffeurZoekterm) {
+                const term = huidigeChauffeurZoekterm.toLowerCase();
+                gefilterd = gefilterd.filter(c => 
+                    (c.gebruikersnaam && c.gebruikersnaam.toLowerCase().includes(term)) ||
+                    (c.chauffeur_nummer && c.chauffeur_nummer.toLowerCase().includes(term))
+                );
+            }
+            
+            if (gefilterd.length === 0) {
+                chauffeursLijst.innerHTML = '<p>Geen chauffeurs gevonden. Maak een gebruiker aan en vink "Chauffeur" aan.</p>';
                 return;
             }
             
@@ -180,23 +184,25 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background-color: #f8f9fa;">
-                            <th style="padding: 12px; text-align: left;">Nummer</th>
+                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
                             <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
-                            <th style="padding: 12px; text-align: left;">Telefoon</th>
+                            <th style="padding: 12px; text-align: left;">Telefoon (WhatsApp)</th>
+                            <th style="padding: 12px; text-align: left;">E-mail</th>
                             <th style="padding: 12px; text-align: left;">Acties</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
             
-            for (const chauffeur of chauffeurs) {
+            for (const c of gefilterd) {
                 html += `
                     <tr style="border-bottom: 1px solid #e9ecef;">
-                        <td style="padding: 12px;">${escapeHtml(chauffeur.chauffeur_nummer || '-')}</td>
-                        <td style="padding: 12px;"><strong>${escapeHtml(chauffeur.gebruikersnaam || '-')}</strong></td>
-                        <td style="padding: 12px;">${escapeHtml(chauffeur.chauffeur_telefoon || '-')}</td>
+                        <td style="padding: 12px;"><strong>${escapeHtml(c.chauffeur_nummer || '-')}</strong></td>
+                        <td style="padding: 12px;">${escapeHtml(c.gebruikersnaam || '-')}</td>
+                        <td style="padding: 12px;">${escapeHtml(c.chauffeur_telefoon || '-')}</td>
+                        <td style="padding: 12px;">${escapeHtml(c.user_id?.substring(0, 8) || '-')}...</td>
                         <td style="padding: 12px;">
-                            <button class="btn btn-secondary edit-chauffeur-btn" data-userid="${chauffeur.user_id}">✏️ Bewerken</button>
+                            <button class="btn btn-secondary edit-chauffeur-btn" data-userid="${c.user_id}">✏️ Bewerken</button>
                         </td>
                     </tr>
                 `;
@@ -220,7 +226,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Rest van de functies (bewerkGebruiker, verwijderGebruiker, etc.) blijven hetzelfde
+    // Laad statistieken
+    async function laadStatistieken() {
+        try {
+            const { count: adresCount } = await window.supabase
+                .from('adressen')
+                .select('*', { count: 'exact', head: true });
+            
+            if (aantalAdressenSpan) aantalAdressenSpan.textContent = adresCount || 0;
+            
+        } catch (err) {
+            console.error('Fout bij laden statistieken:', err);
+        }
+    }
+    
+    // Bewerk gebruiker
     async function bewerkGebruiker(userId) {
         currentUserId = userId;
         userPopupTitle.textContent = 'Gebruiker bewerken';
@@ -238,17 +258,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('userEmail').value = '';
             document.getElementById('userEmail').disabled = true;
             document.getElementById('userEmail').placeholder = 'E-mail niet bewerkbaar';
-            
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = false;
-            
             document.getElementById('userRol').value = data.rol;
             document.getElementById('userIsChauffeur').value = data.is_chauffeur ? 'true' : 'false';
             document.getElementById('chauffeurNummer').value = data.chauffeur_nummer || '';
             document.getElementById('chauffeurTelefoon').value = data.chauffeur_telefoon || '';
             
             chauffeurVelden.style.display = data.is_chauffeur ? 'block' : 'none';
-            
             userPopup.style.display = 'flex';
             
         } catch (err) {
@@ -256,6 +273,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
+    // Verwijder gebruiker
     async function verwijderGebruiker(userId) {
         if (userId === user.id) {
             alert('Je kunt jezelf niet verwijderen!');
@@ -281,6 +299,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
+    // Nieuwe gebruiker
     if (addUserBtn) {
         addUserBtn.addEventListener('click', () => {
             currentUserId = null;
@@ -305,6 +324,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
+    // Opslaan gebruiker
     if (saveUserBtn) {
         saveUserBtn.addEventListener('click', async () => {
             const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
@@ -322,7 +342,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             try {
                 if (currentUserId) {
-                    // Update bestaande gebruiker
                     const { error } = await window.supabase
                         .from('gebruikers_rollen')
                         .update({
@@ -338,8 +357,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                     alert('Gebruiker bijgewerkt');
                     
                 } else {
-                    if (!email || !password) {
-                        alert('E-mail en wachtwoord zijn verplicht voor nieuwe gebruikers');
+                    if (!email || !password || password.length < 6) {
+                        alert('E-mail en wachtwoord (min. 6 tekens) zijn verplicht');
                         return;
                     }
                     
@@ -385,8 +404,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     if (saveStartpuntBtn) {
         saveStartpuntBtn.addEventListener('click', () => {
-            const startpunt = startpuntInstelling.value;
-            localStorage.setItem('abbott_startpunt', JSON.stringify({ adres: startpunt }));
+            localStorage.setItem('abbott_startpunt', JSON.stringify({ adres: startpuntInstelling.value }));
             alert('Startpunt opgeslagen!');
         });
     }
@@ -398,10 +416,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const tabId = btn.dataset.tab;
-            
             tabButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
             tabs.forEach(tab => tab.classList.remove('active'));
             
             if (tabId === 'gebruikers') {
@@ -410,16 +426,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             } else if (tabId === 'chauffeurs') {
                 document.getElementById('tabChauffeurs').classList.add('active');
                 laadChauffeurs();
+            } else if (tabId === 'instellingen') {
+                document.getElementById('tabInstellingen').classList.add('active');
+                laadStatistieken();
             }
         });
     });
     
-    window.addEventListener('click', (e) => {
-        if (e.target === userPopup) {
-            userPopup.style.display = 'none';
-        }
-    });
-    
+    // Zoek functies
     if (searchUserInput) {
         searchUserInput.addEventListener('input', (e) => {
             huidigeUserZoekterm = e.target.value;
@@ -432,7 +446,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             searchUserInput.value = '';
             huidigeUserZoekterm = '';
             laadGebruikers();
-            searchUserInput.focus();
         });
     }
     
@@ -448,14 +461,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             searchChauffeurInput.value = '';
             huidigeChauffeurZoekterm = '';
             laadChauffeurs();
-            searchChauffeurInput.focus();
         });
     }
     
-    // Laad initiële data
-    laadGebruikers();
+    window.addEventListener('click', (e) => {
+        if (e.target === userPopup) userPopup.style.display = 'none';
+    });
     
-    // Laad opgeslagen startpunt
+    // Initialiseer
+    laadGebruikers();
+    laadStatistieken();
+    
     const opgeslagenStartpunt = localStorage.getItem('abbott_startpunt');
     if (opgeslagenStartpunt && startpuntInstelling) {
         try {
