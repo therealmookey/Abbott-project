@@ -61,6 +61,7 @@
     </div>
     
     <!-- Route popup voor print/export -->
+        <!-- Route popup voor print/export -->
     <div id="routePopup" class="popup">
         <div class="popup-content route-popup print-optimized">
             <div class="route-header">
@@ -71,8 +72,13 @@
             </div>
             
             <div class="route-start">
-                <h4>📍 Vertrekpunt</h4>
-                <p id="startpuntWeergave">Magazijn / Standplaats</p>
+                <h4>📍 Startpunt (magazijn/standplaats)</h4>
+                <div class="startpunt-input-group">
+                    <input type="text" id="startpuntInput" class="startpunt-input" placeholder="Bijv. Magazijn Antwerpen, België">
+                    <button id="startpuntOpslaanBtn" class="btn btn-secondary">💾 Opslaan</button>
+                    <button id="startpuntResetBtn" class="btn btn-secondary">↺ Reset</button>
+                </div>
+                <p id="startpuntWeergave" class="startpunt-weergave">Magazijn / Standplaats</p>
             </div>
             
             <div class="route-stops">
@@ -85,7 +91,6 @@
             <div class="route-summary">
                 <h4>📊 Samenvatting</h4>
                 <p>Aantal stops: <span id="aantalStops">0</span></p>
-                <p>Geschatte rijtijd: <span id="geschatteTijd">-</span></p>
             </div>
         </div>
     </div>
