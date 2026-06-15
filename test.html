@@ -6,36 +6,47 @@
 <body>
     <h1>Supabase Test</h1>
     <button onclick="testSignUp()">Test Account Aanmaken</button>
-    <pre id="result"></pre>
+    <div id="result"></div>
+    <div id="error"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // VUL HIER JOUW EIGEN GEGEVENS IN!
-        const SUPABASE_URL = 'https://JOUW-PROJECT-ID.supabase.co';
-        const SUPABASE_ANON_KEY = 'JOUW-ANON-KEY';
+        // KOPIEER DIT PRECIES UIT JE SUPABASE DASHBOARD!
+        // Project Settings → API → Configuratie
+        const SUPABASE_URL = 'https://jcdqcgviossmrvlgsiqd.supabase.co';     // VUL HIER JE URL IN
+        const SUPABASE_ANON_KEY = 'sb_publishable_BhTGDyLsGeHEMConkTeqcg_LHK5pLoG';                  // VUL HIER JE KEY IN
         
-        // Direct initialiseren
+        console.log('URL:', SUPABASE_URL);
+        console.log('Key begint met:', SUPABASE_ANON_KEY.substring(0, 20) + '...');
+        
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        console.log('Client gemaakt:', supabaseClient);
         
         async function testSignUp() {
             const resultDiv = document.getElementById('result');
-            resultDiv.textContent = 'Bezig...';
+            const errorDiv = document.getElementById('error');
+            
+            resultDiv.innerHTML = 'Bezig met verbinden...';
+            errorDiv.innerHTML = '';
             
             try {
+                // Probeer eerst de gezondheid van de verbinding te checken
+                console.log('Proberen te verbinden met:', SUPABASE_URL);
+                
                 const { data, error } = await supabaseClient.auth.signUp({
-                    email: 'test-' + Date.now() + '@test.nl',
-                    password: 'test123456'
+                    email: 'test-' + Date.now() + '@test.com',
+                    password: 'Test123456'
                 });
                 
                 if (error) {
-                    resultDiv.textContent = 'FOUT: ' + JSON.stringify(error, null, 2);
+                    errorDiv.innerHTML = '<strong>FOUT:</strong> ' + JSON.stringify(error, null, 2);
+                    console.error('Fout:', error);
                 } else {
-                    resultDiv.textContent = 'SUCCES! Account aangemaakt: ' + JSON.stringify(data, null, 2);
+                    resultDiv.innerHTML = '<strong>SUCCES!</strong> Account aangemaakt! Check je e-mail voor bevestiging.';
+                    console.log('Succes:', data);
                 }
             } catch (err) {
-                resultDiv.textContent = 'EXCEPTIE: ' + err.message;
+                errorDiv.innerHTML = '<strong>EXCEPTIE:</strong> ' + err.message;
+                console.error('Exception:', err);
             }
         }
     </script>
