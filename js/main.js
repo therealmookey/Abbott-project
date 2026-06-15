@@ -6,51 +6,48 @@ async function laadNavigatie() {
     
     try {
         const response = await fetch('includes/navigatie.html');
+        if (!response.ok) throw new Error('Navigatie kon niet geladen worden');
         const html = await response.text();
         placeholder.innerHTML = html;
         
         const logoutBtn = document.getElementById('logoutBtnNav');
         if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                if (window.supabaseClient) await window.supabaseClient.auth.signOut();
+            logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (window.supabase) await window.supabase.auth.signOut();
                 window.location.href = 'index.html';
             });
         }
     } catch (error) {
         console.error('Fout bij laden navigatie:', error);
+        // Geen redirect, alleen een foutmelding in de console
+        placeholder.innerHTML = '<nav style="background:#ccc; padding:10px;">Menu laden mislukt</nav>';
     }
 }
 
-function toonBericht(elementId, bericht, type = 'success') {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = bericht;
-        element.className = `message ${type}`;
-        element.style.display = 'block';
-        setTimeout(() => {
-            element.style.display = 'none';
-        }, 5000);
-    }
-}
-
+// Check alleen of iemand is ingelogd voor beveiligde pagina's
 async function checkAuth() {
-    if (typeof window.supabaseClient === 'undefined') {
-        window.location.href = 'index.html';
-        return null;
+    if (typeof window.supabase === 'undefined') {
+        return false;
     }
     
-    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    const { data: { session } } = await window.supabase.auth.getSession();
     if (!session) {
-        window.location.href = 'index.html';
-        return null;
+        return false;
     }
-    return session;
+    return true;
 }
 
+// Huidige gebruiker ophalen
 async function getCurrentUser() {
-    if (typeof window.supabaseClient === 'undefined') return null;
-    const { data: { user } } = await window.supabaseClient.auth.getUser();
+    if (typeof window.supabase === 'undefined') return null;
+    const { data: { user } } = await window.supabase.auth.getUser();
     return user;
 }
 
-document.addEventListener('DOMContentLoaded', laadNavigatie);
+// Laad navigatie als de DOM klaar is, maar alleen als er een placeholder is.
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('navigatie-placeholder')) {
+        laadNavigatie();
+    }
+});
