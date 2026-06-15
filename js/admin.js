@@ -16,20 +16,33 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
-    // Check admin status
-    const { data: userRol, error: rolError } = await window.supabase
+    console.log('Ingelogde user ID:', user.id);
+    
+    // Check admin status - de query geeft een ARRAY terug
+    const { data: userRollen, error: rolError } = await window.supabase
         .from('gebruikers_rollen')
         .select('rol')
-        .eq('user_id', user.id)
-        .single();
+        .eq('user_id', user.id);
     
-    if (rolError || !userRol || userRol.rol !== 'admin') {
+    console.log('User rollen (array):', userRollen);
+    
+    // Check of de gebruiker admin is (kijk in de array)
+    let isAdmin = false;
+    if (userRollen && userRollen.length > 0) {
+        isAdmin = (userRollen[0].rol === 'admin');
+    }
+    
+    console.log('Is admin?', isAdmin);
+    
+    if (!isAdmin) {
         alert('Je hebt geen toegang tot deze pagina. Alleen admins kunnen hier komen.');
         window.location.href = 'dashboard.html';
         return;
     }
     
-    console.log('Admin toegang verleend');
+    console.log('✅ Admin toegang verleend!');
+    
+    // =========== DE REST VAN HET ADMIN PANEL ===========
     
     // DOM elementen
     const addUserBtn = document.getElementById('addUserBtn');
@@ -57,15 +70,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     let huidigeUserZoekterm = '';
     let huidigeChauffeurZoekterm = '';
     
-    // Haal alle gebruikers op (via Supabase Admin API)
+    // Haal alle gebruikers op
     async function laadGebruikers() {
         if (!gebruikersLijst) return;
         
         gebruikersLijst.innerHTML = '<p>Bezig met laden...</p>';
         
         try {
-            // Haal gebruikers op via auth admin API (dit is een workaround)
-            // Eerst halen we alle rollen op
             const { data: rollen, error: rollenError } = await window.supabase
                 .from('gebruikers_rollen')
                 .select('*')
@@ -73,13 +84,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (rollenError) throw rollenError;
             
-            // Verzamel alle user_ids
-            const userIds = rollen.map(r => r.user_id);
-            
-            // Helaas kunnen we via de client geen gebruikerslijst ophalen
-            // We moeten een edge function maken of de rollen tabel gebruiken als basis
-            
-            // Voor nu: toon de rollen tabel met user info
             if (!rollen || rollen.length === 0) {
                 gebruikersLijst.innerHTML = '<p>Geen gebruikers gevonden.</p>';
                 if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = '0';
@@ -92,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <table>
                     <thead>
                         <tr>
-                            <th>E-mail</th>
+                            <th>User ID</th>
                             <th>Rol</th>
                             <th>Chauffeur</th>
                             <th>Chauffeursnummer</th>
@@ -105,12 +109,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             `;
             
             for (const rol of rollen) {
-                // Probeer user info te krijgen (beperkt)
-                let email = rol.user_id.substring(0, 8) + '...';
-                
                 html += `
                     <tr data-userid="${rol.user_id}">
-                        <td>${escapeHtml(email)}</td>
+                        <td>${rol.user_id.substring(0, 8)}...</td>
                         <td>${rol.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
                         <td>${rol.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
                         <td>${rol.chauffeur_nummer || '-'}</td>
@@ -144,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Laad chauffeurs (gebruikers met is_chauffeur = true)
+    // Laad chauffeurs
     async function laadChauffeurs() {
         if (!chauffeursLijst) return;
         
@@ -169,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     <thead>
                         <tr>
                             <th>Chauffeursnummer</th>
-                            <th>Naam/ID</th>
+                            <th>User ID</th>
                             <th>Telefoon</th>
                             <th>Rol</th>
                             <th>Acties</th>
@@ -212,18 +213,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Laad statistieken
     async function laadStatistieken() {
         try {
-            // Aantal adressen
             const { count: adresCount } = await window.supabase
                 .from('adressen')
                 .select('*', { count: 'exact', head: true });
             
-            // Aantal ritten
-            const { count: ritCount } = await window.supabase
-                .from('ritten')
-                .select('*', { count: 'exact', head: true });
-            
             if (aantalAdressenSpan) aantalAdressenSpan.textContent = adresCount || 0;
-            if (aantalRittenSpan) aantalRittenSpan.textContent = ritCount || 0;
             
         } catch (err) {
             console.error('Fout bij laden statistieken:', err);
@@ -246,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             document.getElementById('userEmail').value = '';
             document.getElementById('userEmail').disabled = true;
-            document.getElementById('userEmail').placeholder = 'E-mail niet bewerkbaar via deze interface';
+            document.getElementById('userEmail').placeholder = 'E-mail niet bewerkbaar';
             
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = false;
@@ -256,11 +250,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('chauffeurNummer').value = data.chauffeur_nummer || '';
             document.getElementById('chauffeurTelefoon').value = data.chauffeur_telefoon || '';
             
-            if (data.is_chauffeur) {
-                chauffeurVelden.style.display = 'block';
-            } else {
-                chauffeurVelden.style.display = 'none';
-            }
+            chauffeurVelden.style.display = data.is_chauffeur ? 'block' : 'none';
             
             userPopup.style.display = 'flex';
             
@@ -271,10 +261,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Gebruiker verwijderen
     async function verwijderGebruiker(userId) {
-        if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
+        if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) return;
         
         try {
-            // Verwijder uit gebruikers_rollen
             const { error } = await window.supabase
                 .from('gebruikers_rollen')
                 .delete()
@@ -285,14 +274,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             alert('Gebruiker verwijderd');
             laadGebruikers();
             laadChauffeurs();
-            laadStatistieken();
             
         } catch (err) {
             alert('Fout bij verwijderen: ' + err.message);
         }
     }
     
-    // Nieuwe gebruiker aanmaken
+    // Nieuwe gebruiker
     if (addUserBtn) {
         addUserBtn.addEventListener('click', () => {
             currentUserId = null;
@@ -313,11 +301,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Toon/verberg chauffeur velden
     if (userIsChauffeur) {
         userIsChauffeur.addEventListener('change', (e) => {
-            if (e.target.value === 'true') {
-                chauffeurVelden.style.display = 'block';
-            } else {
-                chauffeurVelden.style.display = 'none';
-            }
+            chauffeurVelden.style.display = e.target.value === 'true' ? 'block' : 'none';
         });
     }
     
@@ -350,17 +334,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                             rol: rol,
                             is_chauffeur: isChauffeur,
                             chauffeur_nummer: chauffeurNummer || null,
-                            chauffeur_telefoon: chauffeurTelefoon || null,
-                            updated_at: new Date()
+                            chauffeur_telefoon: chauffeurTelefoon || null
                         })
                         .eq('user_id', currentUserId);
                     
                     if (error) throw error;
-                    
                     alert('Gebruiker bijgewerkt');
                     
                 } else {
-                    // Nieuwe gebruiker aanmaken via Supabase Auth
+                    // Nieuwe gebruiker aanmaken
                     const { data: authData, error: authError } = await window.supabase.auth.signUp({
                         email: email,
                         password: password
@@ -369,7 +351,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                     if (authError) throw authError;
                     
                     if (authData.user) {
-                        // Rol toevoegen in gebruikers_rollen
                         const { error: rolError } = await window.supabase
                             .from('gebruikers_rollen')
                             .insert([{
@@ -381,7 +362,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                             }]);
                         
                         if (rolError) throw rolError;
-                        
                         alert(`Gebruiker ${email} aangemaakt!`);
                     }
                 }
@@ -407,7 +387,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Tab functionaliteit
-    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabButtons = document.querySelectorAll('.admin-tabs .tab-btn');
     const tabs = document.querySelectorAll('.admin-tab');
     
     tabButtons.forEach(btn => {
