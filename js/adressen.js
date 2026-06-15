@@ -1,4 +1,4 @@
-// ===== ADRESSEN FUNCTIES MET LIJSTWEGAVE =====
+// ===== ADRESSEN FUNCTIES MET CONTACTPERSOON =====
 
 console.log('adressen.js geladen');
 
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Tabel weergave
+            // Tabel weergave met contactpersoon kolommen
             let html = `
                 <table>
                     <thead>
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <th>Instelling</th>
                             <th>Adres</th>
                             <th>Postcode/Plaats</th>
-                            <th>Contact</th>
+                            <th>Contactpersoon</th>
                             <th>Extra info</th>
                             <th>Acties</th>
                         </tr>
@@ -70,11 +70,22 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             data.forEach(adres => {
-                // Verkorte weergave van extra info (eerste 100 karakters)
+                // Contactpersoon weergave
+                let contactpersoonHtml = '-';
+                if (adres.contactpersoon_naam) {
+                    contactpersoonHtml = `<strong>${escapeHtml(adres.contactpersoon_naam)}</strong>`;
+                    if (adres.contactpersoon_email) {
+                        contactpersoonHtml += `<br><a href="mailto:${escapeHtml(adres.contactpersoon_email)}" style="color:#2c7da0; font-size:0.85rem;">${escapeHtml(adres.contactpersoon_email)}</a>`;
+                    }
+                } else if (adres.contactpersoon_email) {
+                    contactpersoonHtml = `<a href="mailto:${escapeHtml(adres.contactpersoon_email)}" style="color:#2c7da0;">${escapeHtml(adres.contactpersoon_email)}</a>`;
+                }
+                
+                // Extra info verkort
                 let extraInfoShort = '-';
                 if (adres.extra_info) {
-                    extraInfoShort = escapeHtml(adres.extra_info.substring(0, 100));
-                    if (adres.extra_info.length > 100) extraInfoShort += '...';
+                    extraInfoShort = escapeHtml(adres.extra_info.substring(0, 80));
+                    if (adres.extra_info.length > 80) extraInfoShort += '...';
                 }
                 
                 html += `
@@ -82,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td><strong>${escapeHtml(adres.instelling_naam)}</strong></td>
                         <td>${escapeHtml(adres.straat)}</td>
                         <td>${escapeHtml(adres.postcode)}<br>${escapeHtml(adres.plaats)}</td>
-                        <td>${adres.telefoon ? escapeHtml(adres.telefoon) : '-'}</td>
+                        <td class="contactpersoon-cell">${contactpersoonHtml}</td>
                         <td class="extra-info-cell">${extraInfoShort}</td>
                         <td class="adres-buttons">
                             <button class="btn btn-secondary edit-btn" data-id="${adres.id}">✏️ Bewerken</button>
@@ -121,6 +132,8 @@ document.addEventListener('DOMContentLoaded', function() {
             setValue('postcode', '');
             setValue('plaats', '');
             setValue('telefoon', '');
+            setValue('contactpersoon_naam', '');
+            setValue('contactpersoon_email', '');
             setValue('extra_info', '');
             addressPopup.style.display = 'flex';
         });
@@ -146,6 +159,8 @@ document.addEventListener('DOMContentLoaded', function() {
             setValue('postcode', data.postcode);
             setValue('plaats', data.plaats);
             setValue('telefoon', data.telefoon || '');
+            setValue('contactpersoon_naam', data.contactpersoon_naam || '');
+            setValue('contactpersoon_email', data.contactpersoon_email || '');
             setValue('extra_info', data.extra_info || '');
             addressPopup.style.display = 'flex';
         } catch (err) {
@@ -160,6 +175,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const postcode = getValue('postcode');
             const plaats = getValue('plaats');
             const telefoon = getValue('telefoon');
+            const contactpersoon_naam = getValue('contactpersoon_naam');
+            const contactpersoon_email = getValue('contactpersoon_email');
             const extra_info = getValue('extra_info');
             
             if (!instellingNaam || !straat || !postcode || !plaats) {
@@ -173,6 +190,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 postcode: postcode,
                 plaats: plaats,
                 telefoon: telefoon || null,
+                contactpersoon_naam: contactpersoon_naam || null,
+                contactpersoon_email: contactpersoon_email || null,
                 extra_info: extra_info || null
             };
             
