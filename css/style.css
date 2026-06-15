@@ -688,3 +688,154 @@ mark {
         width: 100%;
     }
 }
+/* ===== ROUTE PLANNER STIJLEN ===== */
+.header-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Route popup */
+.route-popup {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.route-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #2c7da0;
+}
+
+.route-header h3 {
+    margin: 0;
+    color: #2c7da0;
+}
+
+.route-start, .route-stops, .route-summary {
+    margin-bottom: 1.5rem;
+}
+
+.route-start h4, .route-stops h4, .route-summary h4 {
+    color: #2c7da0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.route-ol {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.route-item {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    list-style-position: outside;
+}
+
+.route-item strong {
+    color: #2c7da0;
+    font-size: 1rem;
+}
+
+.route-extra-info {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #dee2e6;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.route-summary {
+    background-color: #e8f4f8;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.route-summary p {
+    margin: 0.25rem 0;
+}
+
+/* Print styles */
+@media print {
+    .print-hide {
+        display: none !important;
+    }
+    
+    .popup {
+        position: relative;
+        display: block !important;
+        background: white;
+    }
+    
+    .popup-content {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+    }
+    
+    .route-popup {
+        max-height: none;
+        overflow: visible;
+    }
+    
+    .route-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    
+    body {
+        background: white;
+    }
+    
+    .container {
+        padding: 0;
+    }
+    
+    .adressen-tabel table {
+        font-size: 10pt;
+    }
+    
+    .btn, .search-section, .header-buttons, .nav-links, .main-nav {
+        display: none !important;
+    }
+}
+
+/* Checkbox kolom */
+.adressen-tabel th:first-child,
+.adressen-tabel td:first-child {
+    text-align: center;
+    width: 40px;
+}
+
+.adressen-tabel input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .header-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .header-buttons .btn {
+        width: 100%;
+    }
+    
+    .route-header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}
