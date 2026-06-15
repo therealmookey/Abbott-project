@@ -2,6 +2,7 @@
 
 checkAuth();
 
+// DOM elementen
 const adressenLijst = document.getElementById('adressenLijst');
 const addAddressBtn = document.getElementById('addAddressBtn');
 const addressPopup = document.getElementById('addressPopup');
@@ -11,12 +12,18 @@ const popupTitle = document.getElementById('popupTitle');
 
 let currentAddressId = null;
 
+// Laad alle adressen
 async function laadAdressen() {
     if (!adressenLijst) return;
     
     adressenLijst.innerHTML = '<p>Laden...</p>';
     
-    const { data, error } = await supabase
+    if (typeof window.supabase === 'undefined') {
+        adressenLijst.innerHTML = '<p class="error">Supabase is niet beschikbaar</p>';
+        return;
+    }
+    
+    const { data, error } = await window.supabase
         .from('adressen')
         .select('*')
         .order('instelling_naam');
@@ -56,6 +63,7 @@ async function laadAdressen() {
     });
 }
 
+// Nieuw adres toevoegen
 if (addAddressBtn) {
     addAddressBtn.addEventListener('click', () => {
         currentAddressId = null;
@@ -69,8 +77,11 @@ if (addAddressBtn) {
     });
 }
 
+// Adres bewerken
 async function bewerkAdres(id) {
-    const { data, error } = await supabase
+    if (typeof window.supabase === 'undefined') return;
+    
+    const { data, error } = await window.supabase
         .from('adressen')
         .select('*')
         .eq('id', id)
@@ -91,8 +102,14 @@ async function bewerkAdres(id) {
     addressPopup.style.display = 'flex';
 }
 
+// Opslaan (nieuw of bewerken)
 if (saveAddressBtn) {
     saveAddressBtn.addEventListener('click', async () => {
+        if (typeof window.supabase === 'undefined') {
+            alert('Supabase is niet beschikbaar');
+            return;
+        }
+        
         const instellingNaam = document.getElementById('instellingNaam').value;
         const straat = document.getElementById('straat').value;
         const postcode = document.getElementById('postcode').value;
@@ -114,13 +131,13 @@ if (saveAddressBtn) {
         
         let error;
         if (currentAddressId) {
-            const result = await supabase
+            const result = await window.supabase
                 .from('adressen')
                 .update(adresData)
                 .eq('id', currentAddressId);
             error = result.error;
         } else {
-            const result = await supabase
+            const result = await window.supabase
                 .from('adressen')
                 .insert([adresData]);
             error = result.error;
@@ -135,10 +152,13 @@ if (saveAddressBtn) {
     });
 }
 
+// Adres verwijderen
 async function verwijderAdres(id) {
     if (!confirm('Weet je zeker dat je dit adres wilt verwijderen?')) return;
     
-    const { error } = await supabase
+    if (typeof window.supabase === 'undefined') return;
+    
+    const { error } = await window.supabase
         .from('adressen')
         .delete()
         .eq('id', id);
@@ -150,18 +170,21 @@ async function verwijderAdres(id) {
     }
 }
 
+// Popup sluiten
 if (closeAddressPopup) {
     closeAddressPopup.addEventListener('click', () => {
         addressPopup.style.display = 'none';
     });
 }
 
+// Click buiten popup sluiten
 window.addEventListener('click', (e) => {
     if (e.target === addressPopup) {
         addressPopup.style.display = 'none';
     }
 });
 
+// HTML escaping voor veiligheid
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -169,4 +192,5 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Laad adressen bij start
 laadAdressen();

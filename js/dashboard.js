@@ -16,16 +16,21 @@ async function toonUserEmail() {
 const statsBtn = document.getElementById('statsBtn');
 if (statsBtn) {
     statsBtn.addEventListener('click', async () => {
+        if (typeof window.supabase === 'undefined') {
+            alert('Supabase is niet beschikbaar');
+            return;
+        }
+        
         // Haal aantal adressen en planningen op
-        const { count: adresCount } = await supabase
-            .from('ziekenhuis_adressen')
+        const { count: adresCount } = await window.supabase
+            .from('adressen')
             .select('*', { count: 'exact', head: true });
         
-        const { count: planningCount } = await supabase
+        const { count: planningCount } = await window.supabase
             .from('planningen')
             .select('*', { count: 'exact', head: true });
         
-        alert(`📊 Statistieken\n\n📍 Aantal ziekenhuisadressen: ${adresCount || 0}\n📅 Aantal planningen: ${planningCount || 0}`);
+        alert(`📊 Statistieken\n\n📍 Aantal adressen: ${adresCount || 0}\n📅 Aantal planningen: ${planningCount || 0}`);
     });
 }
 

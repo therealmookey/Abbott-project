@@ -14,7 +14,7 @@ async function laadNavigatie() {
         const logoutBtn = document.getElementById('logoutBtnNav');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
-                await supabase.auth.signOut();
+                await window.supabase.auth.signOut();
                 window.location.href = 'index.html';
             });
         }
@@ -29,6 +29,7 @@ function toonBericht(elementId, bericht, type = 'success') {
     if (element) {
         element.textContent = bericht;
         element.className = `message ${type}`;
+        element.style.display = 'block';
         setTimeout(() => {
             element.style.display = 'none';
         }, 5000);
@@ -37,16 +38,24 @@ function toonBericht(elementId, bericht, type = 'success') {
 
 // Check of gebruiker is ingelogd (beveiliging)
 async function checkAuth() {
-    const { data: { session } } = await supabase.auth.getSession();
+    if (typeof window.supabase === 'undefined') {
+        console.error('Supabase niet beschikbaar');
+        window.location.href = 'index.html';
+        return null;
+    }
+    
+    const { data: { session } } = await window.supabase.auth.getSession();
     if (!session) {
         window.location.href = 'index.html';
+        return null;
     }
     return session;
 }
 
 // Haal huidige gebruiker op
 async function getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
+    if (typeof window.supabase === 'undefined') return null;
+    const { data: { user } } = await window.supabase.auth.getUser();
     return user;
 }
 

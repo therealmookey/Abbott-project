@@ -20,11 +20,13 @@ async function toonProfiel() {
             profielAangemaakt.textContent = new Date(user.created_at).toLocaleDateString('nl-NL');
         }
         
-        // Laatste inlog (uit session, beetje een workaround)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.created_at) {
-            profielLaatsteInlog.textContent = new Date(session.created_at).toLocaleDateString('nl-NL') + ' ' + 
-                                               new Date(session.created_at).toLocaleTimeString('nl-NL');
+        // Laatste inlog
+        if (typeof window.supabase !== 'undefined') {
+            const { data: { session } } = await window.supabase.auth.getSession();
+            if (session?.created_at) {
+                profielLaatsteInlog.textContent = new Date(session.created_at).toLocaleDateString('nl-NL') + ' ' + 
+                                                   new Date(session.created_at).toLocaleTimeString('nl-NL');
+            }
         }
     }
 }
@@ -51,9 +53,14 @@ if (updateWachtwoordBtn) {
             return;
         }
         
+        if (typeof window.supabase === 'undefined') {
+            alert('Supabase is niet beschikbaar');
+            return;
+        }
+        
         // Eerst verifiëren met huidig wachtwoord
         const user = await getCurrentUser();
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await window.supabase.auth.signInWithPassword({
             email: user.email,
             password: huidig
         });
@@ -64,7 +71,7 @@ if (updateWachtwoordBtn) {
         }
         
         // Wachtwoord bijwerken
-        const { error } = await supabase.auth.updateUser({
+        const { error } = await window.supabase.auth.updateUser({
             password: nieuw
         });
         
@@ -82,7 +89,9 @@ if (updateWachtwoordBtn) {
 // Uitloggen
 if (logoutBtnProfiel) {
     logoutBtnProfiel.addEventListener('click', async () => {
-        await supabase.auth.signOut();
+        if (typeof window.supabase !== 'undefined') {
+            await window.supabase.auth.signOut();
+        }
         window.location.href = 'index.html';
     });
 }

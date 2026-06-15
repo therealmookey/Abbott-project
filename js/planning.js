@@ -2,6 +2,7 @@
 
 checkAuth();
 
+// DOM elementen
 const planningLijst = document.getElementById('planningLijst');
 const newPlanningBtn = document.getElementById('newPlanningBtn');
 const planningPopup = document.getElementById('planningPopup');
@@ -17,7 +18,9 @@ let currentPlanningId = null;
 let instellingen = [];
 
 async function laadInstellingen() {
-    const { data, error } = await supabase
+    if (typeof window.supabase === 'undefined') return [];
+    
+    const { data, error } = await window.supabase
         .from('adressen')
         .select('id, instelling_naam')
         .order('instelling_naam');
@@ -47,7 +50,12 @@ async function laadPlanningen() {
     
     planningLijst.innerHTML = '<p>Laden...</p>';
     
-    let query = supabase
+    if (typeof window.supabase === 'undefined') {
+        planningLijst.innerHTML = '<p class="error">Supabase is niet beschikbaar</p>';
+        return;
+    }
+    
+    let query = window.supabase
         .from('planningen')
         .select(`
             *,
@@ -118,7 +126,9 @@ async function laadPlanningen() {
 }
 
 async function updateStatus(id, nieuweStatus) {
-    const { error } = await supabase
+    if (typeof window.supabase === 'undefined') return;
+    
+    const { error } = await window.supabase
         .from('planningen')
         .update({ status: nieuweStatus })
         .eq('id', id);
@@ -148,7 +158,9 @@ async function bewerkPlanning(id) {
     await laadInstellingen();
     vulInstellingDropdown();
     
-    const { data, error } = await supabase
+    if (typeof window.supabase === 'undefined') return;
+    
+    const { data, error } = await window.supabase
         .from('planningen')
         .select('*')
         .eq('id', id)
@@ -171,6 +183,11 @@ async function bewerkPlanning(id) {
 
 if (savePlanningBtn) {
     savePlanningBtn.addEventListener('click', async () => {
+        if (typeof window.supabase === 'undefined') {
+            alert('Supabase is niet beschikbaar');
+            return;
+        }
+        
         const instellingId = instellingSelect?.value;
         const type = document.getElementById('typeSelect')?.value;
         const datum = document.getElementById('planningDatum')?.value;
@@ -193,13 +210,13 @@ if (savePlanningBtn) {
         
         let error;
         if (currentPlanningId) {
-            const result = await supabase
+            const result = await window.supabase
                 .from('planningen')
                 .update(planningData)
                 .eq('id', currentPlanningId);
             error = result.error;
         } else {
-            const result = await supabase
+            const result = await window.supabase
                 .from('planningen')
                 .insert([planningData]);
             error = result.error;
@@ -217,7 +234,9 @@ if (savePlanningBtn) {
 async function verwijderPlanning(id) {
     if (!confirm('Weet je zeker dat je deze planning wilt verwijderen?')) return;
     
-    const { error } = await supabase
+    if (typeof window.supabase === 'undefined') return;
+    
+    const { error } = await window.supabase
         .from('planningen')
         .delete()
         .eq('id', id);
