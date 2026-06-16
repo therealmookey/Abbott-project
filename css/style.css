@@ -1298,3 +1298,79 @@ hr {
     color: #0d47a1;
     border-left: 3px solid #2196f3;
 }
+/* ===== MODULEBEHEER ===== */
+.module-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.module-tabs .tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #6c757d;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+}
+
+.module-tabs .tab-btn:hover {
+    background-color: #f8f9fa;
+    color: #2c7da0;
+}
+
+.module-tabs .tab-btn.active {
+    color: #2c7da0;
+    border-bottom: 3px solid #2c7da0;
+    font-weight: 600;
+}
+
+.module-tab {
+    display: none;
+}
+
+.module-tab.active {
+    display: block;
+}
+
+.module-tabel {
+    background: white;
+    border-radius: 12px;
+    overflow-x: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 1rem;
+}
+
+.module-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 1rem 0;
+}
+
+.module-checkbox-item {
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.module-checkbox-item label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.module-checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* ===== NAVIGATIE MODULE TOON/VERBERG ===== */
+.nav-link-hidden {
+    display: none !important;
+}
