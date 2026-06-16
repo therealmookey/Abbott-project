@@ -288,6 +288,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         📍 ${escapeHtml(stop.straat)}<br>
                         📮 ${escapeHtml(stop.postcode)} ${escapeHtml(stop.plaats)}<br>
                         <span class="stop-type">${typeInfo}</span>
+                        ${stop.telefoon ? `<div class="stop-telefoon">📞 ${escapeHtml(stop.telefoon)}</div>` : ''}
+                        ${stop.extra_info ? `<div class="stop-extra-info">📝 ${escapeHtml(stop.extra_info)}</div>` : ''}
                         ${stop.opmerkingen ? `<div class="stop-opmerking">📝 ${escapeHtml(stop.opmerkingen)}</div>` : ''}
                     </div>
                 </div>
@@ -336,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         laadPlanningen();
     }
     
-    // Toon WhatsApp popup met circulaire route (start en einde op Schoonmansveld 48)
+    // Toon WhatsApp popup met circulaire route en extra info
     function toonWhatsappPopup() {
         if (!huidigeRouteData || !huidigeRouteData.planningen || huidigeRouteData.planningen.length === 0) {
             alert('Geen route data beschikbaar.');
@@ -365,11 +367,15 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (stop.type === 'plaatsing') {
                 bericht += `   🚚 PLAATSING: ${stop.aantal_lege_tonnen || 1} lege ton(nen)\n`;
             }
-            if (stop.opmerkingen) {
-                bericht += `   📝 ${stop.opmerkingen}\n`;
-            }
             if (stop.telefoon) {
                 bericht += `   📞 Contact: ${stop.telefoon}\n`;
+            }
+            // EXTRA INFO - kritieke informatie voor de chauffeur
+            if (stop.extra_info) {
+                bericht += `   📝 *EXTRA INFO:* ${stop.extra_info}\n`;
+            }
+            if (stop.opmerkingen) {
+                bericht += `   📋 *OPMERKINGEN:* ${stop.opmerkingen}\n`;
             }
             bericht += `\n`;
         });

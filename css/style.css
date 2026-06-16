@@ -1272,3 +1272,29 @@ hr {
     font-size: 0.9rem;
     line-height: 1.4;
 }
+/* ===== ROUTE STOP EXTRA INFO ===== */
+.stop-telefoon {
+    margin-top: 4px;
+    color: #2c7da0;
+    font-size: 0.85rem;
+}
+
+.stop-extra-info {
+    margin-top: 6px;
+    padding: 8px;
+    background: #fff8e1;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #6d5d00;
+    border-left: 3px solid #ffc107;
+}
+
+.stop-opmerking {
+    margin-top: 6px;
+    padding: 8px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #0d47a1;
+    border-left: 3px solid #2196f3;
+}
