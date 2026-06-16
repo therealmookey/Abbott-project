@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th>Instelling</th>
                         <th>Adres</th>
                         <th>Postcode/Plaats</th>
+                        <th>Telefoon</th>
                         <th>Contactpersoon</th>
                         <th>Extra info</th>
                         <th>Acties</th>
@@ -57,14 +58,20 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         adressen.forEach(adres => {
+            // Telefoon weergave (maak er een klikbare link van)
+            let telefoonHtml = '-';
+            if (adres.telefoon) {
+                telefoonHtml = `<a href="tel:${escapeHtml(adres.telefoon)}" class="telefoon-link">${escapeHtml(adres.telefoon)}</a>`;
+            }
+            
             let contactpersoonHtml = '-';
             if (adres.contactpersoon_naam) {
                 contactpersoonHtml = `<strong>${escapeHtml(adres.contactpersoon_naam)}</strong>`;
                 if (adres.contactpersoon_email) {
-                    contactpersoonHtml += `<br><a href="mailto:${escapeHtml(adres.contactpersoon_email)}">${escapeHtml(adres.contactpersoon_email)}</a>`;
+                    contactpersoonHtml += `<br><a href="mailto:${escapeHtml(adres.contactpersoon_email)}" class="email-link">${escapeHtml(adres.contactpersoon_email)}</a>`;
                 }
             } else if (adres.contactpersoon_email) {
-                contactpersoonHtml = `<a href="mailto:${escapeHtml(adres.contactpersoon_email)}">${escapeHtml(adres.contactpersoon_email)}</a>`;
+                contactpersoonHtml = `<a href="mailto:${escapeHtml(adres.contactpersoon_email)}" class="email-link">${escapeHtml(adres.contactpersoon_email)}</a>`;
             }
             
             let extraInfoShort = '-';
@@ -78,7 +85,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td><strong>${escapeHtml(adres.instelling_naam)}</strong></td>
                     <td>${escapeHtml(adres.straat)}</td>
                     <td>${escapeHtml(adres.postcode)}<br>${escapeHtml(adres.plaats)}</td>
-                    <td>${contactpersoonHtml}</td>
+                    <td class="telefoon-cell">${telefoonHtml}</td>
+                    <td class="contactpersoon-cell">${contactpersoonHtml}</td>
                     <td class="extra-info-cell">${extraInfoShort}</td>
                     <td class="adres-buttons">
                         <button class="btn btn-secondary edit-btn" data-id="${adres.id}">✏️ Bewerken</button>
@@ -114,7 +122,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 (adres.straat && adres.straat.toLowerCase().includes(term)) ||
                 (adres.plaats && adres.plaats.toLowerCase().includes(term)) ||
                 (adres.postcode && adres.postcode.toLowerCase().includes(term)) ||
-                (adres.contactpersoon_naam && adres.contactpersoon_naam.toLowerCase().includes(term))
+                (adres.telefoon && adres.telefoon.toLowerCase().includes(term)) ||
+                (adres.contactpersoon_naam && adres.contactpersoon_naam.toLowerCase().includes(term)) ||
+                (adres.contactpersoon_email && adres.contactpersoon_email.toLowerCase().includes(term))
             );
         });
     }
