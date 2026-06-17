@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-Title': 'Abbott Route Planner',
                 },
                 body: JSON.stringify({
-                    model: 'google/gemma-4-31b-instruct:free',  // Gratis model
+                    model: 'google/gemma-4-31b-it:free',  // Gratis model
                     messages: [
                         {
                             role: 'system',
