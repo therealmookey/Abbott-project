@@ -1601,3 +1601,24 @@ hr {
         padding: 6px 10px;
     }
 }
+/* ===== AI OPTIMALISEER KNO ===== */
+.ai-optimize-btn {
+    background: #6f42c1;
+    color: white;
+}
+
+.ai-optimize-btn:hover {
+    background: #5a32a3;
+}
+
+.ai-optimize-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .ai-optimize-btn {
+        width: 100%;
+    }
+}

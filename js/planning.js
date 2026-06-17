@@ -1,4 +1,4 @@
-// ===== PLANNING FUNCTIES - 1 LIJST OP DATUM MET CHAUFFEUR PER DAG =====
+// ===== PLANNING FUNCTIES - 1 LIJST OP DATUM MET CHAUFFEUR PER DAG & AI =====
 
 console.log('planning.js geladen');
 
@@ -121,6 +121,113 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
+    // ===== AI OPTIMALISATIE VIA EDGE FUNCTION =====
+    async function optimaliseerMetAI(datum) {
+        // Verzamel alle adressen voor deze datum
+        const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
+        const adressenList = [];
+        const planningIds = [];
+        
+        items.forEach(item => {
+            const id = parseInt(item.dataset.id);
+            const planning = allePlanningen.find(p => p.id === id);
+            if (planning && planning.adres) {
+                adressenList.push({
+                    id: planning.id,
+                    instelling_naam: planning.adres.instelling_naam,
+                    straat: planning.adres.straat,
+                    postcode: planning.adres.postcode,
+                    plaats: planning.adres.plaats
+                });
+                planningIds.push(planning.id);
+            }
+        });
+        
+        if (adressenList.length === 0) {
+            alert('Geen adressen gevonden voor deze dag.');
+            return;
+        }
+        
+        if (adressenList.length < 2) {
+            alert('Er zijn minimaal 2 adressen nodig voor optimalisatie.');
+            return;
+        }
+        
+        // Toon loading state
+        const btn = document.querySelector(`.ai-optimize-btn[data-datum="${datum}"]`);
+        if (!btn) {
+            alert('AI knop niet gevonden.');
+            return;
+        }
+        const origText = btn.textContent;
+        btn.textContent = '⏳ Bezig...';
+        btn.disabled = true;
+        
+        try {
+            const { data: { session } } = await window.supabase.auth.getSession();
+            const token = session?.access_token;
+            
+            if (!token) {
+                alert('Je bent niet ingelogd. Log opnieuw in.');
+                return;
+            }
+            
+            const response = await fetch(
+                'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/optimize-route',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        adressen: adressenList,
+                        datum: datum 
+                    })
+                }
+            );
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Er ging iets mis');
+            }
+            
+            if (!result.success) {
+                throw new Error(result.error || 'AI optimalisatie mislukt');
+            }
+            
+            const nieuweVolgorde = result.volgorde;
+            
+            if (!nieuweVolgorde || nieuweVolgorde.length === 0) {
+                throw new Error('Geen geldige volgorde ontvangen van AI');
+            }
+            
+            // Sla de nieuwe volgorde op
+            for (let i = 0; i < nieuweVolgorde.length; i++) {
+                const planningId = nieuweVolgorde[i];
+                const volgorde = i + 1;
+                
+                const { error } = await window.supabase
+                    .from('planningen')
+                    .update({ dag_volgorde: volgorde })
+                    .eq('id', planningId);
+                
+                if (error) throw error;
+            }
+            
+            alert(`✅ Route geoptimaliseerd! De volgorde is aangepast op basis van AI-advies.`);
+            laadPlanningen();
+            
+        } catch (err) {
+            console.error('AI optimalisatie fout:', err);
+            alert(`❌ Fout bij AI optimalisatie: ${err.message}`);
+        } finally {
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
+    }
+    
     // Laad alle planningen, gesorteerd op datum
     async function laadPlanningen() {
         if (!planningLijst) return;
@@ -171,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const items = datumGroepen[datum];
             const opgeslagenChauffeur = getChauffeurForDate(datum);
             
-            // Datum header met chauffeur selector
+            // Datum header met chauffeur selector en AI knop
             const datumHeader = document.createElement('div');
             datumHeader.className = 'datum-header';
             datumHeader.dataset.datum = datum;
@@ -188,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <button class="btn btn-success markeer-dag-btn" data-datum="${datum}">✅ Uitgevoerd</button>
                     <button class="btn btn-primary whatsapp-dag-btn" data-datum="${datum}">📱 WhatsApp</button>
+                    <button class="btn btn-primary ai-optimize-btn" data-datum="${datum}">🤖 AI Optimaliseer</button>
                 </div>
             `;
             planningLijst.appendChild(datumHeader);
@@ -204,6 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Event listeners voor dag acties
             datumHeader.querySelector('.markeer-dag-btn').addEventListener('click', () => markeerDagUitgevoerd(datum));
             datumHeader.querySelector('.whatsapp-dag-btn').addEventListener('click', () => genereerWhatsAppVoorDatum(datum));
+            datumHeader.querySelector('.ai-optimize-btn').addEventListener('click', () => optimaliseerMetAI(datum));
             
             // Planning items voor deze datum
             for (let i = 0; i < items.length; i++) {
@@ -455,7 +564,6 @@ document.addEventListener('DOMContentLoaded', function() {
         bericht += adressenVoorRoute.join('&q=');
         bericht += `&q=${encodeURIComponent('Schoonmansveld 48, 2870 Puurs')}`;
         
-        // Sla de huidige datum op voor de WhatsApp verstuur functie
         huidigeWhatsAppDatum = datum;
         
         if (whatsappBericht) whatsappBericht.value = bericht;
@@ -564,10 +672,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (closePlanningPopup) closePlanningPopup.addEventListener('click', () => planningPopup.style.display = 'none');
     
-    // WhatsApp versturen - gebruikt de chauffeur die bij de datum hoort
+    // WhatsApp versturen
     if (sendWhatsAppBtn) {
         sendWhatsAppBtn.addEventListener('click', () => {
-            // Haal de chauffeur voor de huidige WhatsApp datum
             const chauffeurSelect = document.querySelector(`.datum-header[data-datum="${huidigeWhatsAppDatum}"] .chauffeur-select`);
             const telefoon = chauffeurSelect ? chauffeurSelect.value : '';
             const bericht = whatsappBericht?.value;
