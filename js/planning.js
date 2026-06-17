@@ -1,4 +1,4 @@
-// ===== PLANNING FUNCTIES MET CIRCULAIRE ROUTE PLANNER =====
+// ===== PLANNING FUNCTIES MET DRAG & DROP =====
 
 console.log('planning.js geladen');
 
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
         lon: 4.2863
     };
     
-    // DOM elementen - Planning tab
+    // DOM elementen
     const planningLijst = document.getElementById('planningLijst');
     const newPlanningBtn = document.getElementById('newPlanningBtn');
     const planningPopup = document.getElementById('planningPopup');
@@ -31,77 +31,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const typeFilter = document.getElementById('typeFilter');
     const datumFilter = document.getElementById('datumFilter');
     const filterBtn = document.getElementById('filterBtn');
+    const saveRouteOrderBtn = document.getElementById('saveRouteOrderBtn');
+    const clearRouteOrderBtn = document.getElementById('clearRouteOrderBtn');
     
-    // DOM elementen - Route tab
-    const routeDatumInput = document.getElementById('routeDatum');
-    const laadRouteBtn = document.getElementById('laadRouteBtn');
-    const laadKomendeBtn = document.getElementById('laadKomendeBtn');
-    const routeResultaat = document.getElementById('routeResultaat');
-    const chauffeurSelect = document.getElementById('chauffeurSelect');
-    
-    // DOM elementen - WhatsApp popup
+    // WhatsApp popup
     const whatsappPopup = document.getElementById('whatsappPopup');
     const closeWhatsappPopup = document.getElementById('closeWhatsappPopup');
     const sendWhatsAppBtn = document.getElementById('sendWhatsAppBtn');
     const copyBerichtBtn = document.getElementById('copyBerichtBtn');
     const whatsappBericht = document.getElementById('whatsappBericht');
+    const chauffeurSelect = document.getElementById('chauffeurSelect');
     
     let currentPlanningId = null;
     let adressen = [];
-    let huidigeRouteData = null;
-    
-    // Zet vandaag als default datum voor route planner
-    if (routeDatumInput) {
-        const vandaag = new Date().toISOString().split('T')[0];
-        routeDatumInput.value = vandaag;
-    }
-    
-    // Tab functionaliteit
-    const tabButtons = document.querySelectorAll('.planning-tabs .tab-btn');
-    const tabs = document.querySelectorAll('.planning-tab');
-    
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.dataset.tab;
-            tabButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            tabs.forEach(tab => tab.classList.remove('active'));
-            
-            if (tabId === 'planning') {
-                document.getElementById('tabPlanning').classList.add('active');
-                laadPlanningen();
-            } else if (tabId === 'route') {
-                document.getElementById('tabRoute').classList.add('active');
-                laadChauffeurs();
-                if (routeDatumInput.value) {
-                    berekenRouteVoorDatum(routeDatumInput.value);
-                }
-            }
-        });
-    });
-    
-    // Haal chauffeurs op
-    async function laadChauffeurs() {
-        const { data, error } = await window.supabase
-            .from('gebruikers_rollen')
-            .select('user_id, gebruikersnaam, chauffeur_nummer, chauffeur_telefoon')
-            .eq('is_chauffeur', true);
-        
-        if (error) {
-            console.error('Fout bij laden chauffeurs:', error);
-            return;
-        }
-        
-        if (chauffeurSelect) {
-            chauffeurSelect.innerHTML = '<option value="">Selecteer een chauffeur...</option>';
-            data.forEach(chauffeur => {
-                const option = document.createElement('option');
-                option.value = chauffeur.chauffeur_telefoon || '';
-                option.textContent = `${chauffeur.gebruikersnaam || 'Chauffeur'} - ${chauffeur.chauffeur_telefoon || 'geen telefoon'}`;
-                chauffeurSelect.appendChild(option);
-            });
-        }
-    }
+    let huidigePlanningen = [];
+    let sortableInstance = null;
     
     // Laad adressen voor dropdown
     async function laadAdressen() {
@@ -138,278 +82,338 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Coördinaten ophalen via Nominatim
-    async function haalCoordinatenOp(adresString) {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(adresString + ', België')}&limit=1`;
-        try {
-            const response = await fetch(url, {
-                headers: { 'User-Agent': 'Abbott-Route-Planner/1.0' }
+    // Laad chauffeurs voor WhatsApp
+    async function laadChauffeurs() {
+        const { data, error } = await window.supabase
+            .from('gebruikers_rollen')
+            .select('user_id, gebruikersnaam, chauffeur_nummer, chauffeur_telefoon')
+            .eq('is_chauffeur', true);
+        
+        if (error) {
+            console.error('Fout bij laden chauffeurs:', error);
+            return;
+        }
+        
+        if (chauffeurSelect) {
+            chauffeurSelect.innerHTML = '<option value="">Selecteer een chauffeur...</option>';
+            data.forEach(chauffeur => {
+                const option = document.createElement('option');
+                option.value = chauffeur.chauffeur_telefoon || '';
+                option.textContent = `${chauffeur.gebruikersnaam || 'Chauffeur'} - ${chauffeur.chauffeur_telefoon || 'geen telefoon'}`;
+                chauffeurSelect.appendChild(option);
             });
-            const data = await response.json();
-            if (data && data.length > 0) {
-                return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-            }
-        } catch (error) {
-            console.error('Fout bij ophalen coördinaten:', error);
         }
-        return null;
     }
     
-    // Afstand berekenen (Haversine formule)
-    function berekenAfstand(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    }
-    
-    // Optimaliseer route (greedy algoritme)
-    async function optimaliseerRoute(adressenList, startLat, startLon) {
-        if (!adressenList || adressenList.length === 0) return [];
+    // Laad planningen met drag & drop
+    async function laadPlanningen() {
+        if (!planningLijst) return;
         
-        const adressenMetCoords = [];
-        for (const adres of adressenList) {
-            const zoekTerm = `${adres.straat}, ${adres.postcode} ${adres.plaats}`;
-            const coords = await haalCoordinatenOp(zoekTerm);
-            adressenMetCoords.push({ ...adres, lat: coords?.lat, lon: coords?.lon });
-        }
+        planningLijst.innerHTML = '<p>Laden...</p>';
         
-        const metCoords = adressenMetCoords.filter(a => a.lat && a.lon);
-        const zonderCoords = adressenMetCoords.filter(a => !a.lat || !a.lon);
-        
-        if (metCoords.length === 0) return adressenList;
-        
-        let huidigeLat = startLat;
-        let huidigeLon = startLon;
-        const ongeordend = [...metCoords];
-        const geordend = [];
-        
-        while (ongeordend.length > 0) {
-            let dichtstbijIndex = 0;
-            let kortsteAfstand = Infinity;
-            
-            for (let i = 0; i < ongeordend.length; i++) {
-                if (ongeordend[i].lat && ongeordend[i].lon) {
-                    const afstand = berekenAfstand(huidigeLat, huidigeLon, ongeordend[i].lat, ongeordend[i].lon);
-                    if (afstand < kortsteAfstand) {
-                        kortsteAfstand = afstand;
-                        dichtstbijIndex = i;
-                    }
-                }
-            }
-            
-            const volgende = ongeordend[dichtstbijIndex];
-            geordend.push(volgende);
-            huidigeLat = volgende.lat;
-            huidigeLon = volgende.lon;
-            ongeordend.splice(dichtstbijIndex, 1);
-        }
-        
-        return [...geordend, ...zonderCoords];
-    }
-    
-    // Route berekenen voor een datum (circulair)
-    async function berekenRouteVoorDatum(datum) {
-        if (!routeResultaat) return;
-        
-        routeResultaat.innerHTML = '<p>Bezig met laden en optimaliseren...</p>';
-        
-        const { data: planningen, error } = await window.supabase
+        let query = window.supabase
             .from('planningen')
             .select(`
                 *,
                 adres:adres_id (id, instelling_naam, straat, postcode, plaats, telefoon, extra_info)
             `)
-            .eq('datum', datum)
-            .eq('status', 'gepland')
-            .order('type', { ascending: true });
+            .order('datum', { ascending: true })
+            .order('route_volgorde', { ascending: true });
+        
+        if (typeFilter?.value && typeFilter.value !== 'alles') query = query.eq('type', typeFilter.value);
+        if (statusFilter?.value && statusFilter.value !== 'alles') query = query.eq('status', statusFilter.value);
+        if (datumFilter?.value) query = query.eq('datum', datumFilter.value);
+        
+        const { data, error } = await query;
         
         if (error) {
-            routeResultaat.innerHTML = `<p class="error">Fout: ${error.message}</p>`;
+            planningLijst.innerHTML = `<p class="error">Fout bij laden: ${error.message}</p>`;
             return;
         }
         
-        if (!planningen || planningen.length === 0) {
-            routeResultaat.innerHTML = '<p>Geen geplande ritten voor deze datum.</p>';
+        if (!data || data.length === 0) {
+            planningLijst.innerHTML = '<p>Geen planningen gevonden.</p>';
             return;
         }
         
-        const adressenList = [];
-        for (const planning of planningen) {
-            if (planning.adres) {
-                adressenList.push({
-                    id: planning.id,
-                    planning_id: planning.id,
-                    instelling_naam: planning.adres.instelling_naam,
-                    straat: planning.adres.straat,
-                    postcode: planning.adres.postcode,
-                    plaats: planning.adres.plaats,
-                    telefoon: planning.adres.telefoon,
-                    extra_info: planning.adres.extra_info,
-                    type: planning.type,
-                    aantal_tonnen: planning.aantal_tonnen,
-                    aantal_lege_tonnen: planning.aantal_lege_tonnen,
-                    opmerkingen: planning.opmerkingen
-                });
-            }
-        }
+        huidigePlanningen = data;
+        planningLijst.innerHTML = '';
         
-        const geoptimaliseerd = await optimaliseerRoute(adressenList, START_LOCATIE.lat, START_LOCATIE.lon);
-        huidigeRouteData = { planningen: geoptimaliseerd, datum: datum };
-        
-        let html = `
-            <div class="route-overview">
-                <div class="route-header-summary">
-                    <h4>🗺️ CIRCULAIRE ROUTE voor ${new Date(datum).toLocaleDateString('nl-NL')}</h4>
-                    <p><strong>📍 START & EINDE:</strong> ${START_LOCATIE.adres}</p>
-                    <p><strong>📋 Aantal stops:</strong> ${geoptimaliseerd.length}</p>
-                    <p><strong>🔄 Type:</strong> Circulaire route (begin en einde op basis)</p>
-                </div>
-                <div class="route-stops-list">
-        `;
-        
-        geoptimaliseerd.forEach((stop, index) => {
-            let typeInfo = '';
-            if (stop.type === 'ophaling') {
-                typeInfo = `📦 OPHALING - ${stop.aantal_tonnen || 1} volle ton(nen) ophalen`;
-            } else if (stop.type === 'plaatsing') {
-                typeInfo = `🚚 PLAATSING - ${stop.aantal_lege_tonnen || 1} lege ton(nen) afleveren`;
+        // Toon de planningen in de huidige volgorde
+        for (const planning of data) {
+            const item = document.createElement('div');
+            item.className = 'planning-item sortable-item';
+            item.dataset.id = planning.id;
+            item.dataset.volgorde = planning.route_volgorde || 0;
+            
+            // Bepaal status class
+            let statusClass = planning.status === 'gepland' ? 'status-gepland' : 
+                             (planning.status === 'uitgevoerd' ? 'status-uitgevoerd' : 'status-geannuleerd');
+            
+            // Extra info voor type
+            let extraInfo = '';
+            if (planning.type === 'ophaling' && planning.aantal_tonnen) {
+                extraInfo = `<p>📦 <strong>Aantal volle tonnen:</strong> ${planning.aantal_tonnen} stuks</p>`;
+            } else if (planning.type === 'plaatsing' && planning.aantal_lege_tonnen) {
+                extraInfo = `<p>🚚 <strong>Aantal lege tonnen meenemen:</strong> ${planning.aantal_lege_tonnen} stuks</p>`;
             }
             
-            html += `
-                <div class="route-stop">
-                    <div class="stop-number">${index + 1}</div>
-                    <div class="stop-details">
-                        <strong>${escapeHtml(stop.instelling_naam)}</strong><br>
-                        📍 ${escapeHtml(stop.straat)}<br>
-                        📮 ${escapeHtml(stop.postcode)} ${escapeHtml(stop.plaats)}<br>
-                        <span class="stop-type">${typeInfo}</span>
-                        ${stop.telefoon ? `<div class="stop-telefoon">📞 ${escapeHtml(stop.telefoon)}</div>` : ''}
-                        ${stop.extra_info ? `<div class="stop-extra-info">📝 ${escapeHtml(stop.extra_info)}</div>` : ''}
-                        ${stop.opmerkingen ? `<div class="stop-opmerking">📝 ${escapeHtml(stop.opmerkingen)}</div>` : ''}
+            // Extra info weergeven
+            let extraInfoText = '';
+            if (planning.adres?.extra_info) {
+                extraInfoText = `<p class="adres-extra-info">📝 ${escapeHtml(planning.adres.extra_info)}</p>`;
+            }
+            
+            // Telefoon weergeven
+            let telefoonText = '';
+            if (planning.adres?.telefoon) {
+                telefoonText = `<p>📞 ${escapeHtml(planning.adres.telefoon)}</p>`;
+            }
+            
+            // Volgnummer (voor drag & drop visualisatie)
+            const volgnummer = planning.route_volgorde || (data.indexOf(planning) + 1);
+            
+            item.innerHTML = `
+                <div class="planning-info">
+                    <div class="planning-header">
+                        <span class="drag-handle">⠿</span>
+                        <span class="stop-number-badge">#${volgnummer}</span>
+                        <h4>${planning.type === 'ophaling' ? '📦 Ophaling' : '🚚 Plaatsing'}</h4>
+                        <span class="planning-status ${statusClass}">${getStatusText(planning.status)}</span>
                     </div>
+                    <p><strong>${escapeHtml(planning.adres?.instelling_naam || 'Onbekend')}</strong></p>
+                    <p>📍 ${escapeHtml(planning.adres?.straat || '')}, ${escapeHtml(planning.adres?.postcode || '')} ${escapeHtml(planning.adres?.plaats || '')}</p>
+                    <p>📅 ${new Date(planning.datum).toLocaleDateString('nl-NL')}</p>
+                    ${telefoonText}
+                    ${extraInfo}
+                    ${extraInfoText}
+                    ${planning.opmerkingen ? `<p>📝 ${escapeHtml(planning.opmerkingen)}</p>` : ''}
+                </div>
+                <div class="planning-buttons">
+                    <select class="status-select" data-id="${planning.id}">
+                        <option value="gepland" ${planning.status === 'gepland' ? 'selected' : ''}>Gepland</option>
+                        <option value="uitgevoerd" ${planning.status === 'uitgevoerd' ? 'selected' : ''}>Uitgevoerd</option>
+                        <option value="geannuleerd" ${planning.status === 'geannuleerd' ? 'selected' : ''}>Geannuleerd</option>
+                    </select>
+                    <button class="btn btn-secondary edit-planning-btn" data-id="${planning.id}">✏️</button>
+                    <button class="btn btn-danger delete-planning-btn" data-id="${planning.id}">🗑️</button>
                 </div>
             `;
+            planningLijst.appendChild(item);
+        }
+        
+        // Event listeners voor status, bewerken, verwijderen
+        document.querySelectorAll('.status-select').forEach(select => {
+            select.addEventListener('change', (e) => updateStatus(e.target.dataset.id, e.target.value));
+        });
+        document.querySelectorAll('.edit-planning-btn').forEach(btn => {
+            btn.addEventListener('click', () => bewerkPlanning(btn.dataset.id));
+        });
+        document.querySelectorAll('.delete-planning-btn').forEach(btn => {
+            btn.addEventListener('click', () => verwijderPlanning(btn.dataset.id));
         });
         
-        // Terugkeer naar basis
-        html += `
-                    <div class="route-stop route-return">
-                        <div class="stop-number">🏁</div>
-                        <div class="stop-details">
-                            <strong>TERUGKEER NAAR BASIS</strong><br>
-                            📍 ${START_LOCATIE.adres}<br>
-                            📮 Einde van de rit - lever eventuele lege tonnen in
-                        </div>
-                    </div>
-                </div>
-                <div class="route-actions-bottom">
-                    <button id="genereerWhatsAppBtn" class="btn btn-primary">📱 Genereer WhatsApp bericht</button>
-                    <button id="markeerUitgevoerdBtn" class="btn btn-secondary">✅ Markeer alle als uitgevoerd</button>
-                </div>
-            </div>
-        `;
-        
-        routeResultaat.innerHTML = html;
-        
-        document.getElementById('genereerWhatsAppBtn')?.addEventListener('click', () => toonWhatsappPopup());
-        document.getElementById('markeerUitgevoerdBtn')?.addEventListener('click', () => markeerAllesUitgevoerd(planningen));
+        // Initialiseer SortableJS voor drag & drop
+        initSortable();
     }
     
-    // Markeer alle planningen als uitgevoerd
-    async function markeerAllesUitgevoerd(planningen) {
-        if (!confirm(`Weet je zeker dat je alle ${planningen.length} ritten wilt markeren als uitgevoerd?`)) return;
+    // Initialiseer SortableJS
+    function initSortable() {
+        const list = document.getElementById('planningLijst');
+        if (!list) return;
         
-        let successCount = 0;
-        for (const planning of planningen) {
+        // Vernietig bestaande instance als die er is
+        if (sortableInstance) {
+            sortableInstance.destroy();
+        }
+        
+        sortableInstance = new Sortable(list, {
+            handle: '.drag-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            onEnd: function(evt) {
+                updateStopNumbers();
+                // Markeer dat de volgorde is gewijzigd
+                document.getElementById('saveRouteOrderBtn').style.display = 'inline-block';
+            }
+        });
+    }
+    
+    // Update de stop nummers na drag & drop
+    function updateStopNumbers() {
+        const items = document.querySelectorAll('#planningLijst .planning-item');
+        items.forEach((item, index) => {
+            const badge = item.querySelector('.stop-number-badge');
+            if (badge) {
+                badge.textContent = `#${index + 1}`;
+            }
+            // Update dataset volgorde
+            item.dataset.volgorde = index + 1;
+        });
+    }
+    
+    // Sla de route volgorde op in de database
+    async function saveRouteOrder() {
+        const items = document.querySelectorAll('#planningLijst .planning-item');
+        const updates = [];
+        
+        items.forEach((item, index) => {
+            const id = parseInt(item.dataset.id);
+            const volgorde = index + 1;
+            updates.push({ id, volgorde });
+        });
+        
+        if (updates.length === 0) {
+            alert('Geen planningen om op te slaan.');
+            return;
+        }
+        
+        try {
+            for (const update of updates) {
+                const { error } = await window.supabase
+                    .from('planningen')
+                    .update({ route_volgorde: update.volgorde })
+                    .eq('id', update.id);
+                
+                if (error) throw error;
+            }
+            
+            alert('Route volgorde succesvol opgeslagen!');
+            document.getElementById('saveRouteOrderBtn').style.display = 'none';
+            
+            // Herlaad de planningen
+            laadPlanningen();
+            
+        } catch (err) {
+            alert('Fout bij opslaan: ' + err.message);
+        }
+    }
+    
+    // Reset de route volgorde
+    async function resetRouteOrder() {
+        if (!confirm('Weet je zeker dat je de route volgorde wilt resetten?')) return;
+        
+        try {
             const { error } = await window.supabase
                 .from('planningen')
-                .update({ status: 'uitgevoerd' })
-                .eq('id', planning.id);
-            if (!error) successCount++;
+                .update({ route_volgorde: 0 })
+                .neq('id', 0);
+            
+            if (error) throw error;
+            
+            alert('Route volgorde gereset!');
+            laadPlanningen();
+            
+        } catch (err) {
+            alert('Fout bij resetten: ' + err.message);
         }
-        
-        alert(`${successCount} van de ${planningen.length} ritten gemarkeerd als uitgevoerd.`);
-        berekenRouteVoorDatum(huidigeRouteData?.datum);
-        laadPlanningen();
     }
     
-    // Toon WhatsApp popup met circulaire route en extra info
-    function toonWhatsappPopup() {
-        if (!huidigeRouteData || !huidigeRouteData.planningen || huidigeRouteData.planningen.length === 0) {
-            alert('Geen route data beschikbaar.');
-            return;
-        }
+    // Update status
+    async function updateStatus(id, nieuweStatus) {
+        const { error } = await window.supabase.from('planningen').update({ status: nieuweStatus }).eq('id', id);
+        if (error) alert('Fout: ' + error.message);
+        else laadPlanningen();
+    }
+    
+    // Verwijder planning
+    async function verwijderPlanning(id) {
+        if (!confirm('Weet je zeker dat je deze planning wilt verwijderen?')) return;
+        const { error } = await window.supabase.from('planningen').delete().eq('id', id);
+        if (error) alert('Fout: ' + error.message);
+        else laadPlanningen();
+    }
+    
+    // Bewerk planning
+    async function bewerkPlanning(id) {
+        const { data, error } = await window.supabase.from('planningen').select('*').eq('id', id).single();
+        if (error) { alert('Fout: ' + error.message); return; }
         
-        const chauffeurTel = chauffeurSelect?.value;
-        if (!chauffeurTel) {
-            alert('Selecteer eerst een chauffeur.');
-            return;
-        }
+        currentPlanningId = id;
+        planningPopupTitle.textContent = 'Planning bewerken';
+        await laadAdressen();
+        vulAdresDropdown();
         
-        const datum = new Date(huidigeRouteData.datum).toLocaleDateString('nl-NL');
-        let bericht = `🚚 *ABBOTT ROUTE PLANNING* 🚚\n\n`;
-        bericht += `📅 *Datum:* ${datum}\n`;
-        bericht += `📍 *START & EINDE:* Schoonmansveld 48, 2870 Puurs\n\n`;
-        bericht += `*📋 CIRCULAIRE ROUTE (${huidigeRouteData.planningen.length} stops)*\n`;
-        bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        typeSelect.value = data.type;
+        adresSelect.value = data.adres_id;
+        document.getElementById('planningDatum').value = data.datum;
+        document.getElementById('aantalTonnen').value = data.aantal_tonnen || 1;
+        document.getElementById('aantalLegeTonnen').value = data.aantal_lege_tonnen || 1;
+        document.getElementById('opmerkingen').value = data.opmerkingen || '';
         
-        huidigeRouteData.planningen.forEach((stop, index) => {
-            bericht += `${index + 1}. *${stop.instelling_naam}*\n`;
-            bericht += `   📍 ${stop.straat}\n`;
-            bericht += `   📮 ${stop.postcode} ${stop.plaats}\n`;
-            if (stop.type === 'ophaling') {
-                bericht += `   📦 OPHALING: ${stop.aantal_tonnen || 1} volle ton(nen)\n`;
-            } else if (stop.type === 'plaatsing') {
-                bericht += `   🚚 PLAATSING: ${stop.aantal_lege_tonnen || 1} lege ton(nen)\n`;
-            }
-            if (stop.telefoon) {
-                bericht += `   📞 Contact: ${stop.telefoon}\n`;
-            }
-            // EXTRA INFO - kritieke informatie voor de chauffeur
-            if (stop.extra_info) {
-                bericht += `   📝 *EXTRA INFO:* ${stop.extra_info}\n`;
-            }
-            if (stop.opmerkingen) {
-                bericht += `   📋 *OPMERKINGEN:* ${stop.opmerkingen}\n`;
-            }
-            bericht += `\n`;
+        ophalingVelden.style.display = data.type === 'ophaling' ? 'block' : 'none';
+        plaatsingVelden.style.display = data.type === 'plaatsing' ? 'block' : 'none';
+        planningPopup.style.display = 'flex';
+    }
+    
+    // Nieuwe planning
+    if (newPlanningBtn) {
+        newPlanningBtn.addEventListener('click', async () => {
+            currentPlanningId = null;
+            planningPopupTitle.textContent = 'Nieuwe planning';
+            await laadAdressen();
+            vulAdresDropdown();
+            typeSelect.value = '';
+            adresSelect.value = '';
+            document.getElementById('planningDatum').value = '';
+            document.getElementById('aantalTonnen').value = '1';
+            document.getElementById('aantalLegeTonnen').value = '1';
+            document.getElementById('opmerkingen').value = '';
+            ophalingVelden.style.display = 'none';
+            plaatsingVelden.style.display = 'none';
+            planningPopup.style.display = 'flex';
         });
-        
-        // Na de laatste stop: terug naar basis
-        bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-        bericht += `${huidigeRouteData.planningen.length + 1}. *TERUGKEER NAAR BASIS*\n`;
-        bericht += `   📍 Schoonmansveld 48, 2870 Puurs\n`;
-        bericht += `   🏁 EINDE RIT\n\n`;
-        
-        bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-        bericht += `🗺️ Open in Waze (circulaire route):\n`;
-        bericht += `https://www.waze.com/ul?ll=51.0589,4.2863&navigate=yes&q=`;
-        
-        // Voeg alle adressen toe als stops in Waze
-        const adressenVoorRoute = huidigeRouteData.planningen.map(stop => 
-            encodeURIComponent(`${stop.straat}, ${stop.postcode} ${stop.plaats}`)
-        );
-        bericht += adressenVoorRoute.join('&q=');
-        
-        // Voeg ook het eindpunt toe (terug naar basis)
-        bericht += `&q=${encodeURIComponent('Schoonmansveld 48, 2870 Puurs')}`;
-        
-        // Alternatieve Google Maps link voor de zekerheid
-        bericht += `\n\n🗺️ Of open in Google Maps (circulaire route):\n`;
-        bericht += `https://www.google.com/maps/dir/Schoonmansveld+48,+2870+Puurs/`;
-        bericht += adressenVoorRoute.join('/');
-        bericht += `/Schoonmansveld+48,+2870+Puurs`;
-        
-        if (whatsappBericht) whatsappBericht.value = bericht;
-        whatsappPopup.style.display = 'flex';
     }
     
-    // WhatsApp versturen
+    // Opslaan planning
+    if (savePlanningBtn) {
+        savePlanningBtn.addEventListener('click', async () => {
+            const type = typeSelect?.value;
+            const adresId = adresSelect?.value;
+            const datum = document.getElementById('planningDatum')?.value;
+            const aantalTonnen = document.getElementById('aantalTonnen')?.value;
+            const aantalLegeTonnen = document.getElementById('aantalLegeTonnen')?.value;
+            const opmerkingen = document.getElementById('opmerkingen')?.value;
+            
+            if (!type || !adresId || !datum) {
+                alert('Vul alle verplichte velden in');
+                return;
+            }
+            
+            const planningData = { 
+                adres_id: parseInt(adresId), 
+                type, 
+                datum, 
+                opmerkingen: opmerkingen || null, 
+                status: 'gepland',
+                route_volgorde: 0 // Standaard volgorde, wordt later aangepast
+            };
+            
+            if (type === 'ophaling') planningData.aantal_tonnen = parseInt(aantalTonnen) || 1;
+            if (type === 'plaatsing') planningData.aantal_lege_tonnen = parseInt(aantalLegeTonnen) || 1;
+            
+            let error;
+            if (currentPlanningId) {
+                const result = await window.supabase.from('planningen').update(planningData).eq('id', currentPlanningId);
+                error = result.error;
+            } else {
+                const result = await window.supabase.from('planningen').insert([planningData]);
+                error = result.error;
+            }
+            
+            if (error) alert('Fout: ' + error.message);
+            else { planningPopup.style.display = 'none'; laadPlanningen(); }
+        });
+    }
+    
+    if (closePlanningPopup) closePlanningPopup.addEventListener('click', () => planningPopup.style.display = 'none');
+    if (filterBtn) filterBtn.addEventListener('click', laadPlanningen);
+    if (saveRouteOrderBtn) saveRouteOrderBtn.addEventListener('click', saveRouteOrder);
+    if (clearRouteOrderBtn) clearRouteOrderBtn.addEventListener('click', resetRouteOrder);
+    
+    // WhatsApp functies
     if (sendWhatsAppBtn) {
         sendWhatsAppBtn.addEventListener('click', () => {
             const telefoon = chauffeurSelect?.value;
@@ -442,175 +446,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Laad alle planningen
-    async function laadPlanningen() {
-        if (!planningLijst) return;
-        
-        planningLijst.innerHTML = '<p>Laden...</p>';
-        
-        let query = window.supabase
-            .from('planningen')
-            .select(`*, adres:adres_id (id, instelling_naam, straat, postcode, plaats)`)
-            .order('datum', { ascending: true });
-        
-        if (typeFilter?.value && typeFilter.value !== 'alles') query = query.eq('type', typeFilter.value);
-        if (statusFilter?.value && statusFilter.value !== 'alles') query = query.eq('status', statusFilter.value);
-        if (datumFilter?.value) query = query.eq('datum', datumFilter.value);
-        
-        const { data, error } = await query;
-        
-        if (error) {
-            planningLijst.innerHTML = `<p class="error">Fout bij laden: ${error.message}</p>`;
-            return;
-        }
-        
-        if (!data || data.length === 0) {
-            planningLijst.innerHTML = '<p>Geen planningen gevonden.</p>';
-            return;
-        }
-        
-        planningLijst.innerHTML = '';
-        for (const planning of data) {
-            const item = document.createElement('div');
-            item.className = 'planning-item';
-            
-            let statusClass = planning.status === 'gepland' ? 'status-gepland' : (planning.status === 'uitgevoerd' ? 'status-uitgevoerd' : 'status-geannuleerd');
-            let extraInfo = '';
-            if (planning.type === 'ophaling' && planning.aantal_tonnen) {
-                extraInfo = `<p>📦 <strong>Aantal volle tonnen:</strong> ${planning.aantal_tonnen} stuks</p>`;
-            } else if (planning.type === 'plaatsing' && planning.aantal_lege_tonnen) {
-                extraInfo = `<p>🚚 <strong>Aantal lege tonnen meenemen:</strong> ${planning.aantal_lege_tonnen} stuks</p>`;
-            }
-            
-            item.innerHTML = `
-                <div class="planning-info">
-                    <h4>${planning.type === 'ophaling' ? '📦 Ophaling' : '🚚 Plaatsing'}</h4>
-                    <p><strong>${escapeHtml(planning.adres?.instelling_naam || 'Onbekend')}</strong></p>
-                    <p>📍 ${escapeHtml(planning.adres?.straat || '')}, ${escapeHtml(planning.adres?.postcode || '')} ${escapeHtml(planning.adres?.plaats || '')}</p>
-                    <p>📅 ${new Date(planning.datum).toLocaleDateString('nl-NL')}</p>
-                    ${extraInfo}
-                    ${planning.opmerkingen ? `<p>📝 ${escapeHtml(planning.opmerkingen)}</p>` : ''}
-                    <span class="planning-status ${statusClass}">${getStatusText(planning.status)}</span>
-                </div>
-                <div class="planning-buttons">
-                    <select class="status-select" data-id="${planning.id}">
-                        <option value="gepland" ${planning.status === 'gepland' ? 'selected' : ''}>Gepland</option>
-                        <option value="uitgevoerd" ${planning.status === 'uitgevoerd' ? 'selected' : ''}>Uitgevoerd</option>
-                        <option value="geannuleerd" ${planning.status === 'geannuleerd' ? 'selected' : ''}>Geannuleerd</option>
-                    </select>
-                    <button class="btn btn-secondary edit-planning-btn" data-id="${planning.id}">✏️</button>
-                    <button class="btn btn-danger delete-planning-btn" data-id="${planning.id}">🗑️</button>
-                </div>
-            `;
-            planningLijst.appendChild(item);
-        }
-        
-        document.querySelectorAll('.status-select').forEach(select => {
-            select.addEventListener('change', (e) => updateStatus(e.target.dataset.id, e.target.value));
-        });
-        document.querySelectorAll('.edit-planning-btn').forEach(btn => {
-            btn.addEventListener('click', () => bewerkPlanning(btn.dataset.id));
-        });
-        document.querySelectorAll('.delete-planning-btn').forEach(btn => {
-            btn.addEventListener('click', () => verwijderPlanning(btn.dataset.id));
-        });
-    }
-    
-    async function updateStatus(id, nieuweStatus) {
-        const { error } = await window.supabase.from('planningen').update({ status: nieuweStatus }).eq('id', id);
-        if (error) alert('Fout: ' + error.message);
-        else laadPlanningen();
-    }
-    
-    async function verwijderPlanning(id) {
-        if (!confirm('Weet je zeker dat je deze planning wilt verwijderen?')) return;
-        const { error } = await window.supabase.from('planningen').delete().eq('id', id);
-        if (error) alert('Fout: ' + error.message);
-        else laadPlanningen();
-    }
-    
-    async function bewerkPlanning(id) {
-        const { data, error } = await window.supabase.from('planningen').select('*').eq('id', id).single();
-        if (error) { alert('Fout: ' + error.message); return; }
-        
-        currentPlanningId = id;
-        planningPopupTitle.textContent = 'Planning bewerken';
-        await laadAdressen();
-        vulAdresDropdown();
-        
-        typeSelect.value = data.type;
-        adresSelect.value = data.adres_id;
-        document.getElementById('planningDatum').value = data.datum;
-        document.getElementById('aantalTonnen').value = data.aantal_tonnen || 1;
-        document.getElementById('aantalLegeTonnen').value = data.aantal_lege_tonnen || 1;
-        document.getElementById('opmerkingen').value = data.opmerkingen || '';
-        
-        ophalingVelden.style.display = data.type === 'ophaling' ? 'block' : 'none';
-        plaatsingVelden.style.display = data.type === 'plaatsing' ? 'block' : 'none';
-        planningPopup.style.display = 'flex';
-    }
-    
-    if (newPlanningBtn) {
-        newPlanningBtn.addEventListener('click', async () => {
-            currentPlanningId = null;
-            planningPopupTitle.textContent = 'Nieuwe planning';
-            await laadAdressen();
-            vulAdresDropdown();
-            typeSelect.value = '';
-            adresSelect.value = '';
-            document.getElementById('planningDatum').value = '';
-            document.getElementById('aantalTonnen').value = '1';
-            document.getElementById('aantalLegeTonnen').value = '1';
-            document.getElementById('opmerkingen').value = '';
-            ophalingVelden.style.display = 'none';
-            plaatsingVelden.style.display = 'none';
-            planningPopup.style.display = 'flex';
-        });
-    }
-    
-    if (savePlanningBtn) {
-        savePlanningBtn.addEventListener('click', async () => {
-            const type = typeSelect?.value;
-            const adresId = adresSelect?.value;
-            const datum = document.getElementById('planningDatum')?.value;
-            const aantalTonnen = document.getElementById('aantalTonnen')?.value;
-            const aantalLegeTonnen = document.getElementById('aantalLegeTonnen')?.value;
-            const opmerkingen = document.getElementById('opmerkingen')?.value;
-            
-            if (!type || !adresId || !datum) {
-                alert('Vul alle verplichte velden in');
-                return;
-            }
-            
-            const planningData = { adres_id: parseInt(adresId), type, datum, opmerkingen: opmerkingen || null, status: 'gepland' };
-            if (type === 'ophaling') planningData.aantal_tonnen = parseInt(aantalTonnen) || 1;
-            if (type === 'plaatsing') planningData.aantal_lege_tonnen = parseInt(aantalLegeTonnen) || 1;
-            
-            let error;
-            if (currentPlanningId) {
-                const result = await window.supabase.from('planningen').update(planningData).eq('id', currentPlanningId);
-                error = result.error;
-            } else {
-                const result = await window.supabase.from('planningen').insert([planningData]);
-                error = result.error;
-            }
-            
-            if (error) alert('Fout: ' + error.message);
-            else { planningPopup.style.display = 'none'; laadPlanningen(); }
-        });
-    }
-    
-    if (closePlanningPopup) closePlanningPopup.addEventListener('click', () => planningPopup.style.display = 'none');
-    if (filterBtn) filterBtn.addEventListener('click', laadPlanningen);
-    if (laadRouteBtn) laadRouteBtn.addEventListener('click', () => berekenRouteVoorDatum(routeDatumInput.value));
-    if (laadKomendeBtn) {
-        laadKomendeBtn.addEventListener('click', () => {
-            const vandaag = new Date().toISOString().split('T')[0];
-            routeDatumInput.value = vandaag;
-            berekenRouteVoorDatum(vandaag);
-        });
-    }
-    
     window.addEventListener('click', (e) => {
         if (e.target === planningPopup) planningPopup.style.display = 'none';
         if (e.target === whatsappPopup) whatsappPopup.style.display = 'none';
@@ -634,5 +469,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialiseer
     laadPlanningen();
+    laadChauffeurs();
     
 });

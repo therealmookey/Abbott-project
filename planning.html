@@ -4,74 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planning - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=15">
+    <link rel="stylesheet" href="css/style.css?v=17">
+    <!-- SortableJS voor drag & drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 <body>
     <div id="navigatie-placeholder"></div>
     
     <main class="container">
         <div class="page-header">
-            <h1>📅 Planning & Route Planner</h1>
-            <button id="newPlanningBtn" class="btn btn-primary">+ Nieuwe planning</button>
-        </div>
-        
-        <!-- Tabbladen -->
-        <div class="planning-tabs">
-            <button class="tab-btn active" data-tab="planning">📋 Alle planningen</button>
-            <button class="tab-btn" data-tab="route">🗺️ Route planner</button>
-        </div>
-        
-        <!-- TAB 1: Alle planningen -->
-        <div id="tabPlanning" class="planning-tab active">
-            <!-- Filters -->
-            <div class="filter-section">
-                <select id="typeFilter">
-                    <option value="alles">Alle types</option>
-                    <option value="ophaling">Ophaling</option>
-                    <option value="plaatsing">Plaatsing</option>
-                </select>
-                <select id="statusFilter">
-                    <option value="alles">Alle statussen</option>
-                    <option value="gepland">Gepland</option>
-                    <option value="uitgevoerd">Uitgevoerd</option>
-                    <option value="geannuleerd">Geannuleerd</option>
-                </select>
-                <input type="date" id="datumFilter" placeholder="Datum">
-                <button id="filterBtn" class="btn btn-secondary">Filter</button>
-            </div>
-            
-            <!-- Planning lijst -->
-            <div id="planningLijst" class="planning-lijst">
-                <p>Laden...</p>
+            <h1>📅 Planning</h1>
+            <div class="header-buttons">
+                <button id="newPlanningBtn" class="btn btn-primary">+ Nieuwe planning</button>
+                <button id="saveRouteOrderBtn" class="btn btn-success">💾 Route volgorde opslaan</button>
+                <button id="clearRouteOrderBtn" class="btn btn-danger">🗑️ Reset volgorde</button>
             </div>
         </div>
         
-        <!-- TAB 2: Route planner -->
-        <div id="tabRoute" class="planning-tab">
-            <div class="route-planner-header">
-                <h3>🗺️ Automatische route planning</h3>
-                <p>Selecteer een datum om alle geplande ritten te optimaliseren</p>
-            </div>
-            
-            <div class="route-controls">
-                <div class="route-date-selector">
-                    <label>Datum:</label>
-                    <input type="date" id="routeDatum" class="form-input">
-                    <button id="laadRouteBtn" class="btn btn-primary">📅 Route berekenen</button>
-                    <button id="laadKomendeBtn" class="btn btn-secondary">📆 Komende 7 dagen</button>
-                </div>
-                
-                <div class="route-chauffeur-selector">
-                    <label>👨‍✈️ Chauffeur:</label>
-                    <select id="chauffeurSelect" class="form-input">
-                        <option value="">Selecteer een chauffeur...</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div id="routeResultaat" class="route-resultaat">
-                <p>Selecteer een datum om de route te berekenen...</p>
-            </div>
+        <!-- Filters -->
+        <div class="filter-section">
+            <select id="typeFilter">
+                <option value="alles">Alle types</option>
+                <option value="ophaling">Ophaling</option>
+                <option value="plaatsing">Plaatsing</option>
+            </select>
+            <select id="statusFilter">
+                <option value="alles">Alle statussen</option>
+                <option value="gepland">Gepland</option>
+                <option value="uitgevoerd">Uitgevoerd</option>
+                <option value="geannuleerd">Geannuleerd</option>
+            </select>
+            <input type="date" id="datumFilter" placeholder="Datum">
+            <button id="filterBtn" class="btn btn-secondary">Filter</button>
+        </div>
+        
+        <!-- Route volgorde info -->
+        <div class="route-order-info">
+            <p>📌 <strong>Route volgorde:</strong> Sleep de adressen in de gewenste volgorde. De nummering past zich automatisch aan.</p>
+        </div>
+        
+        <!-- Planning lijst met drag & drop -->
+        <div id="planningLijst" class="planning-lijst sortable-list">
+            <p>Laden...</p>
         </div>
     </main>
     
@@ -106,7 +80,7 @@
             </div>
             
             <label>Opmerkingen</label>
-            <textarea id="opmerkingen" rows="3" placeholder="Extra informatie voor de chauffeur..."></textarea>
+            <textarea id="opmerkingen" rows="3" placeholder="Extra informatie..."></textarea>
             
             <div style="display: flex; gap: 10px; margin-top: 1rem;">
                 <button id="savePlanningBtn" class="btn btn-primary">Opslaan</button>
@@ -119,6 +93,13 @@
     <div id="whatsappPopup" class="popup">
         <div class="popup-content whatsapp-popup">
             <h3>📱 Stuur route naar chauffeur</h3>
+            
+            <div class="route-chauffeur">
+                <h4>👨‍✈️ Kies chauffeur</h4>
+                <select id="chauffeurSelect" class="form-input">
+                    <option value="">Selecteer een chauffeur...</option>
+                </select>
+            </div>
             
             <div class="route-bericht">
                 <h4>📝 WhatsApp bericht</h4>

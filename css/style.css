@@ -1374,3 +1374,97 @@ hr {
 .nav-link-hidden {
     display: none !important;
 }
+/* ===== DRAG & DROP STIJLEN ===== */
+.drag-handle {
+    cursor: grab;
+    font-size: 1.2rem;
+    color: #6c757d;
+    margin-right: 8px;
+    user-select: none;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.sortable-item {
+    transition: all 0.2s ease;
+}
+
+.sortable-ghost {
+    opacity: 0.4;
+    background: #e8f4f8 !important;
+    border: 2px dashed #2c7da0;
+}
+
+.sortable-chosen {
+    background: #f0f7fa;
+}
+
+.sortable-drag {
+    opacity: 0.8;
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.planning-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.stop-number-badge {
+    display: inline-block;
+    background: #2c7da0;
+    color: white;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    min-width: 28px;
+    text-align: center;
+}
+
+.route-order-info {
+    background: #e8f4f8;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border-left: 4px solid #2c7da0;
+}
+
+.route-order-info p {
+    margin: 0;
+    color: #1f5e7e;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+#saveRouteOrderBtn {
+    display: none; /* Verborgen tot er een wijziging is */
+}
+
+.adres-extra-info {
+    font-size: 0.85rem;
+    color: #6c757d;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
