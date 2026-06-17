@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
-    // ===== AI OPTIMALISATIE (Directe API Call) =====
+    // ===== AI OPTIMALISATIE (Directe API Call met Mistral 7B) =====
     async function optimaliseerMetAI(datum) {
         // Verzamel alle adressen voor deze datum
         const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
@@ -168,13 +168,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 adresLijst += `${index + 1}. ${adres.instelling_naam}, ${adres.straat}, ${adres.postcode} ${adres.plaats}\n`;
             });
             
-            // Haal de API key uit localStorage (of gebruik de fallback)
-            const apiKey = localStorage.getItem('openrouter_key') || OPENROUTER_API_KEY || '';
+            // Haal de API key uit localStorage
+            const apiKey = localStorage.getItem('openrouter_key') || '';
             if (!apiKey) {
                 throw new Error('Geen OpenRouter API key gevonden. Voeg deze toe via de console: localStorage.setItem("openrouter_key", "jouw-key")');
             }
             
-            // Roep OpenRouter API direct aan
+            // Roep OpenRouter API direct aan met Mistral 7B (gratis)
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-Title': 'Abbott Route Planner',
                 },
                 body: JSON.stringify({
-                    model: 'deepseek/deepseek-v4-flash:free',
+                    model: 'mistralai/mistral-7b-instruct:free',  // Gratis model
                     messages: [
                         {
                             role: 'system',
