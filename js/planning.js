@@ -122,7 +122,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
-// ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
 async function optimaliseerMetAI(datum) {
     // Verzamel alle adressen voor deze datum
     const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
@@ -163,10 +162,10 @@ async function optimaliseerMetAI(datum) {
     btn.disabled = true;
     
     try {
-        // Bouw de prompt
+        // Bouw de prompt met de echte database IDs
         let adresLijst = "";
-        adressenList.forEach((adres, index) => {
-            adresLijst += (index + 1) + ". " + adres.instelling_naam + ", " + adres.straat + ", " + adres.postcode + " " + adres.plaats + "\n";
+        adressenList.forEach(function(adres, index) {
+            adresLijst += "ID: " + adres.id + ", " + adres.instelling_naam + ", " + adres.straat + ", " + adres.postcode + " " + adres.plaats + "\n";
         });
         
         // Haal de API key uit localStorage
@@ -189,11 +188,11 @@ async function optimaliseerMetAI(datum) {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Je bent een route-optimalisatie expert. Geef een JSON array met de IDs van de adressen in de beste volgorde. Bijvoorbeeld: [2, 1, 3]'
+                        content: 'Je bent een route-optimalisatie expert. Geef een JSON array met de IDs van de adressen in de beste volgorde. Gebruik de echte database IDs die je in de lijst ziet, niet de volgnummers! Bijvoorbeeld: [17, 23, 16, 18]'
                     },
                     {
                         role: 'user',
-                        content: 'Optimaliseer deze adressen voor een circulaire route (begin en einde op Schoonmansveld 48, 2870 Puurs):\n' + adresLijst
+                        content: 'Optimaliseer deze adressen voor een circulaire route (begin en einde op Schoonmansveld 48, 2870 Puurs). Gebruik de echte IDs:\n' + adresLijst
                     }
                 ],
                 stream: false,
@@ -207,7 +206,6 @@ async function optimaliseerMetAI(datum) {
             throw new Error(result.error?.message || 'Er ging iets mis met de AI');
         }
         
-        // Debug: Log de volledige AI response
         console.log('AI response:', JSON.stringify(result, null, 2));
         
         let nieuweVolgorde = [];
@@ -231,7 +229,7 @@ async function optimaliseerMetAI(datum) {
         }
         
         // Debug: Log de huidige volgorde
-        const huidigeVolgorde = adressenList.map(function(a) { return a.id; });
+        var huidigeVolgorde = adressenList.map(function(a) { return a.id; });
         console.log('Huidige volgorde:', huidigeVolgorde);
         console.log('Nieuwe volgorde:', nieuweVolgorde);
         
