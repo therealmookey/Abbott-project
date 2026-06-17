@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
-    // ===== AI OPTIMALISATIE (Directe API Call met Mistral 7B) =====
+    // ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
     async function optimaliseerMetAI(datum) {
         // Verzamel alle adressen voor deze datum
         const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error('Geen OpenRouter API key gevonden. Voeg deze toe via de console: localStorage.setItem("openrouter_key", "jouw-key")');
             }
             
-            // Roep OpenRouter API direct aan met Mistral 7B (gratis)
+            // Roep OpenRouter API direct aan met Gemma 4 (gratis)
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-Title': 'Abbott Route Planner',
                 },
                 body: JSON.stringify({
-                    model: 'google/gemma-4-31b-it:free',  // Gratis model
+                    model: 'google/gemma-4-31b-it:free',
                     messages: [
                         {
                             role: 'system',
@@ -234,7 +234,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             alert(`✅ Route geoptimaliseerd! De volgorde is aangepast op basis van AI-advies.`);
-            laadPlanningen();
+            
+            // ===== FORCEER EEN VISUELE UPDATE =====
+            // Herlaad de planning en zorg dat de verandering zichtbaar wordt
+            await laadPlanningen();
+            
+            // Scroll naar de datum header
+            const datumHeader = document.querySelector(`.datum-header[data-datum="${datum}"]`);
+            if (datumHeader) {
+                datumHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Markeer de datum header even om de verandering te benadrukken
+                datumHeader.style.transition = 'background-color 0.5s';
+                datumHeader.style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    datumHeader.style.backgroundColor = '';
+                }, 2000);
+            }
             
         } catch (err) {
             console.error('AI optimalisatie fout:', err);
