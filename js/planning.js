@@ -188,7 +188,7 @@ async function optimaliseerMetAI(datum) {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Je bent een route-optimalisatie expert. Geef een JSON array met de IDs van de adressen in de beste volgorde. Gebruik de echte database IDs die je in de lijst ziet, niet de volgnummers! Bijvoorbeeld: [17, 23, 16, 18]'
+                        content: 'Je bent een route-optimalisatie expert. Geef alleen een JSON array met de IDs van de adressen in de beste volgorde. Gebruik de echte database IDs. Geen extra tekst, geen markdown, geen uitleg. Alleen de JSON array.'
                     },
                     {
                         role: 'user',
@@ -210,17 +210,39 @@ async function optimaliseerMetAI(datum) {
         
         let nieuweVolgorde = [];
         try {
-            const content = result.choices[0].message.content;
-            console.log('AI content:', content);
+            let content = result.choices[0].message.content;
+            console.log('AI content (raw):', content);
+            
+            // Verwijder markdown code blocks
+            content = content.replace(/```json\s*/g, '');
+            content = content.replace(/```\s*/g, '');
+            content = content.trim();
+            
+            console.log('AI content (cleaned):', content);
             nieuweVolgorde = JSON.parse(content);
             console.log('Geparste volgorde:', nieuweVolgorde);
         } catch (parseError) {
             console.log('JSON parse error, probeer regex fallback');
             const content = result.choices[0].message.content;
-            const matches = content.match(/\d+/g);
-            if (matches) {
-                nieuweVolgorde = matches.map(Number);
-                console.log('Regex gevonden IDs:', nieuweVolgorde);
+            // Zoek naar een array met getallen
+            const match = content.match(/\[\s*(\d+\s*,\s*)*\d+\s*\]/);
+            if (match) {
+                try {
+                    nieuweVolgorde = JSON.parse(match[0]);
+                    console.log('Regex gevonden array:', nieuweVolgorde);
+                } catch(e) {
+                    const numbers = content.match(/\d+/g);
+                    if (numbers) {
+                        nieuweVolgorde = numbers.map(Number);
+                        console.log('Regex gevonden IDs:', nieuweVolgorde);
+                    }
+                }
+            } else {
+                const numbers = content.match(/\d+/g);
+                if (numbers) {
+                    nieuweVolgorde = numbers.map(Number);
+                    console.log('Regex gevonden IDs:', nieuweVolgorde);
+                }
             }
         }
         
