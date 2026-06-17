@@ -188,11 +188,11 @@ async function optimaliseerMetAI(datum) {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Je bent een route-optimalisatie expert. Geef alleen een JSON array met de IDs van de adressen in de beste volgorde. Gebruik de echte database IDs. Geen extra tekst, geen markdown, geen uitleg. Alleen de JSON array.'
+                        content: 'Je bent een route-optimalisatie expert. Geef alleen een JSON array met de IDs van de adressen in de beste volgorde. Gebruik alleen de IDs die in de lijst staan. Voeg geen extra IDs toe. Geen extra tekst, geen markdown, geen uitleg. Alleen de JSON array met de bestaande IDs.'
                     },
                     {
                         role: 'user',
-                        content: 'Optimaliseer deze adressen voor een circulaire route (begin en einde op Schoonmansveld 48, 2870 Puurs). Gebruik de echte IDs:\n' + adresLijst
+                        content: 'Optimaliseer de volgorde van deze adressen voor een circulaire route. De chauffeur start en eindigt op Schoonmansveld 48, 2870 Puurs (dit is geen adres in de lijst). Geef alleen de IDs in de beste volgorde:\n' + adresLijst
                     }
                 ],
                 stream: false,
@@ -250,13 +250,32 @@ async function optimaliseerMetAI(datum) {
             throw new Error('Geen geldige volgorde ontvangen van AI');
         }
         
+        // ===== FILTER: Alleen IDs die in de planning zitten =====
+        var geldigeIds = adressenList.map(function(a) { return a.id; });
+        console.log('Geldige IDs:', geldigeIds);
+        
+        var gefilterdeVolgorde = nieuweVolgorde.filter(function(id) {
+            return geldigeIds.indexOf(id) !== -1;
+        });
+        console.log('Gefilterde volgorde:', gefilterdeVolgorde);
+        
+        // Als er IDs ontbreken, voeg ze toe aan het einde
+        var ontbrekendeIds = geldigeIds.filter(function(id) {
+            return gefilterdeVolgorde.indexOf(id) === -1;
+        });
+        console.log('Ontbrekende IDs:', ontbrekendeIds);
+        
+        // Voeg ontbrekende IDs toe aan het einde
+        var uiteindelijkeVolgorde = gefilterdeVolgorde.concat(ontbrekendeIds);
+        console.log('Uiteindelijke volgorde:', uiteindelijkeVolgorde);
+        
         // Debug: Log de huidige volgorde
         var huidigeVolgorde = adressenList.map(function(a) { return a.id; });
         console.log('Huidige volgorde:', huidigeVolgorde);
-        console.log('Nieuwe volgorde:', nieuweVolgorde);
+        console.log('Nieuwe volgorde:', uiteindelijkeVolgorde);
         
         // Controleer of de volgorde daadwerkelijk verandert
-        var isGelijk = JSON.stringify(huidigeVolgorde) === JSON.stringify(nieuweVolgorde);
+        var isGelijk = JSON.stringify(huidigeVolgorde) === JSON.stringify(uiteindelijkeVolgorde);
         if (isGelijk) {
             console.log('Volgorde is hetzelfde, AI denkt dat dit al optimaal is.');
             alert('De AI heeft geen betere volgorde gevonden. De huidige volgorde is al optimaal.');
@@ -266,8 +285,8 @@ async function optimaliseerMetAI(datum) {
         }
         
         // Sla de nieuwe volgorde op
-        for (var i = 0; i < nieuweVolgorde.length; i++) {
-            var planningId = nieuweVolgorde[i];
+        for (var i = 0; i < uiteindelijkeVolgorde.length; i++) {
+            var planningId = uiteindelijkeVolgorde[i];
             var volgorde = i + 1;
             
             var updateResult = await window.supabase
