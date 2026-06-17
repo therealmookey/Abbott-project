@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
-    // ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
+   // ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
 async function optimaliseerMetAI(datum) {
     // Verzamel alle adressen voor deze datum
     const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
@@ -188,11 +188,11 @@ async function optimaliseerMetAI(datum) {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Je bent een route-optimalisatie expert. Geef alleen een JSON array met de IDs van de adressen in de beste volgorde. Gebruik alleen de IDs die in de lijst staan. Voeg geen extra IDs toe. Geen extra tekst, geen markdown, geen uitleg. Alleen de JSON array met de bestaande IDs.'
+                        content: 'Je bent een route-optimalisatie expert. Geef alleen een JSON array met de IDs van de adressen in de beste volgorde. Gebruik alleen de IDs die in de lijst staan. Gebruik getallen, geen strings. Geen extra tekst, geen markdown, geen uitleg. Alleen de JSON array met getallen.'
                     },
                     {
                         role: 'user',
-                        content: 'Optimaliseer de volgorde van deze adressen voor een circulaire route. De chauffeur start en eindigt op Schoonmansveld 48, 2870 Puurs (dit is geen adres in de lijst). Geef alleen de IDs in de beste volgorde:\n' + adresLijst
+                        content: 'Optimaliseer de volgorde van deze adressen voor een circulaire route. De chauffeur start en eindigt op Schoonmansveld 48, 2870 Puurs (dit is geen adres in de lijst). Geef alleen de IDs in de beste volgorde als getallen:\n' + adresLijst
                     }
                 ],
                 stream: false,
@@ -224,7 +224,6 @@ async function optimaliseerMetAI(datum) {
         } catch (parseError) {
             console.log('JSON parse error, probeer regex fallback');
             const content = result.choices[0].message.content;
-            // Zoek naar een array met getallen
             const match = content.match(/\[\s*(\d+\s*,\s*)*\d+\s*\]/);
             if (match) {
                 try {
@@ -250,11 +249,18 @@ async function optimaliseerMetAI(datum) {
             throw new Error('Geen geldige volgorde ontvangen van AI');
         }
         
-        // ===== FILTER: Alleen IDs die in de planning zitten =====
+        // ===== CONVERTEER ALLES NAAR GETALLEN =====
         var geldigeIds = adressenList.map(function(a) { return a.id; });
-        console.log('Geldige IDs:', geldigeIds);
+        console.log('Geldige IDs (numbers):', geldigeIds);
         
-        var gefilterdeVolgorde = nieuweVolgorde.filter(function(id) {
+        // Converteer nieuweVolgorde naar numbers
+        var nieuweVolgordeNumbers = nieuweVolgorde.map(function(id) {
+            return typeof id === 'string' ? parseInt(id) : id;
+        });
+        console.log('Nieuwe volgorde (numbers):', nieuweVolgordeNumbers);
+        
+        // Filter: alleen IDs die in de planning zitten
+        var gefilterdeVolgorde = nieuweVolgordeNumbers.filter(function(id) {
             return geldigeIds.indexOf(id) !== -1;
         });
         console.log('Gefilterde volgorde:', gefilterdeVolgorde);
