@@ -1364,3 +1364,103 @@ hr {
         display: none !important;
     }
 }
+/* ===== DATUM SELECTOR ===== */
+.date-selector-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.date-controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.date-controls .btn {
+    white-space: nowrap;
+}
+
+.date-input {
+    max-width: 200px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.date-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+#dateDisplay {
+    font-weight: 600;
+    color: #2c7da0;
+    font-size: 1.1rem;
+}
+
+.route-count-badge {
+    background: #e9ecef;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+/* ===== DAG ACTIES ===== */
+.day-actions {
+    margin-top: 1.5rem;
+}
+
+.day-actions-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.day-actions-buttons .btn {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* ===== RESPONSIVE DATE SELECTOR ===== */
+@media (max-width: 768px) {
+    .date-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .date-controls .btn {
+        width: 100%;
+    }
+    
+    .date-input {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .date-info {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .day-actions-buttons {
+        flex-direction: column;
+    }
+    
+    .day-actions-buttons .btn {
+        width: 100%;
+    }
+}

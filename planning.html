@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planning - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=17">
+    <link rel="stylesheet" href="css/style.css?v=18">
     <!-- SortableJS voor drag & drop -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
@@ -13,39 +13,45 @@
     
     <main class="container">
         <div class="page-header">
-            <h1>📅 Planning</h1>
+            <h1>📅 Planning per Dag</h1>
             <div class="header-buttons">
                 <button id="newPlanningBtn" class="btn btn-primary">+ Nieuwe planning</button>
-                <button id="saveRouteOrderBtn" class="btn btn-success">💾 Route volgorde opslaan</button>
-                <button id="clearRouteOrderBtn" class="btn btn-danger">🗑️ Reset volgorde</button>
+                <button id="saveRouteOrderBtn" class="btn btn-success">💾 Volgorde opslaan</button>
             </div>
         </div>
         
-        <!-- Filters -->
-        <div class="filter-section">
-            <select id="typeFilter">
-                <option value="alles">Alle types</option>
-                <option value="ophaling">Ophaling</option>
-                <option value="plaatsing">Plaatsing</option>
-            </select>
-            <select id="statusFilter">
-                <option value="alles">Alle statussen</option>
-                <option value="gepland">Gepland</option>
-                <option value="uitgevoerd">Uitgevoerd</option>
-                <option value="geannuleerd">Geannuleerd</option>
-            </select>
-            <input type="date" id="datumFilter" placeholder="Datum">
-            <button id="filterBtn" class="btn btn-secondary">Filter</button>
+        <!-- Datum selector voor dagweergave -->
+        <div class="date-selector-section">
+            <div class="date-controls">
+                <button id="prevDayBtn" class="btn btn-secondary">◀ Vorige dag</button>
+                <input type="date" id="selectedDate" class="form-input date-input">
+                <button id="nextDayBtn" class="btn btn-secondary">Volgende dag ▶</button>
+                <button id="todayBtn" class="btn btn-primary">📅 Vandaag</button>
+            </div>
+            <div class="date-info">
+                <span id="dateDisplay"></span>
+                <span id="routeCountDisplay" class="route-count-badge"></span>
+            </div>
         </div>
         
         <!-- Route volgorde info -->
         <div class="route-order-info">
-            <p>📌 <strong>Route volgorde:</strong> Sleep de adressen in de gewenste volgorde. De nummering past zich automatisch aan.</p>
+            <p>📌 <strong>Route volgorde voor deze dag:</strong> Sleep de adressen in de gewenste volgorde. De nummering past zich automatisch aan.</p>
         </div>
         
         <!-- Planning lijst met drag & drop -->
         <div id="planningLijst" class="planning-lijst sortable-list">
             <p>Laden...</p>
+        </div>
+        
+        <!-- Dag acties -->
+        <div class="day-actions" id="dayActions" style="display: none;">
+            <hr>
+            <div class="day-actions-buttons">
+                <button id="markeerDagUitgevoerdBtn" class="btn btn-success">✅ Markeer alle ritten van deze dag als uitgevoerd</button>
+                <button id="genereerWhatsAppDagBtn" class="btn btn-primary">📱 Genereer WhatsApp bericht voor deze dag</button>
+                <button id="resetDagVolgordeBtn" class="btn btn-danger">🔄 Reset volgorde voor deze dag</button>
+            </div>
         </div>
     </main>
     

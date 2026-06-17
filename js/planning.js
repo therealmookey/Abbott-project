@@ -1,4 +1,4 @@
-// ===== PLANNING FUNCTIES MET DRAG & DROP =====
+// ===== PLANNING FUNCTIES MET DAGELIJKSE VOLGORDE =====
 
 console.log('planning.js geladen');
 
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Vaste start- en eindlocatie (circulair)
+    // Vaste start- en eindlocatie
     const START_LOCATIE = {
         adres: 'Schoonmansveld 48, 2870 Puurs',
         lat: 51.0589,
@@ -27,12 +27,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('typeSelect');
     const ophalingVelden = document.getElementById('ophalingVelden');
     const plaatsingVelden = document.getElementById('plaatsingVelden');
-    const statusFilter = document.getElementById('statusFilter');
-    const typeFilter = document.getElementById('typeFilter');
-    const datumFilter = document.getElementById('datumFilter');
-    const filterBtn = document.getElementById('filterBtn');
     const saveRouteOrderBtn = document.getElementById('saveRouteOrderBtn');
-    const clearRouteOrderBtn = document.getElementById('clearRouteOrderBtn');
+    
+    // Datum navigatie
+    const selectedDateInput = document.getElementById('selectedDate');
+    const dateDisplay = document.getElementById('dateDisplay');
+    const routeCountDisplay = document.getElementById('routeCountDisplay');
+    const prevDayBtn = document.getElementById('prevDayBtn');
+    const nextDayBtn = document.getElementById('nextDayBtn');
+    const todayBtn = document.getElementById('todayBtn');
+    const dayActions = document.getElementById('dayActions');
+    const markeerDagUitgevoerdBtn = document.getElementById('markeerDagUitgevoerdBtn');
+    const genereerWhatsAppDagBtn = document.getElementById('genereerWhatsAppDagBtn');
+    const resetDagVolgordeBtn = document.getElementById('resetDagVolgordeBtn');
     
     // WhatsApp popup
     const whatsappPopup = document.getElementById('whatsappPopup');
@@ -44,8 +51,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let currentPlanningId = null;
     let adressen = [];
+    let huidigeDatum = '';
     let huidigePlanningen = [];
     let sortableInstance = null;
+    
+    // Zet vandaag als default
+    const vandaag = new Date().toISOString().split('T')[0];
+    if (selectedDateInput) {
+        selectedDateInput.value = vandaag;
+        huidigeDatum = vandaag;
+    }
     
     // Laad adressen voor dropdown
     async function laadAdressen() {
@@ -105,52 +120,77 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Laad planningen met drag & drop
-    async function laadPlanningen() {
+    // Update dagelijkse volgorde nummers
+    async function updateDagVolgorde(datum, planningen) {
+        // Sorteer op huidige dag_volgorde
+        const gesorteerd = [...planningen].sort((a, b) => (a.dag_volgorde || 0) - (b.dag_volgorde || 0));
+        
+        for (let i = 0; i < gesorteerd.length; i++) {
+            const nieuweVolgorde = i + 1;
+            if ((gesorteerd[i].dag_volgorde || 0) !== nieuweVolgorde) {
+                const { error } = await window.supabase
+                    .from('planningen')
+                    .update({ dag_volgorde: nieuweVolgorde })
+                    .eq('id', gesorteerd[i].id);
+                
+                if (error) {
+                    console.error('Fout bij updaten volgorde:', error);
+                }
+            }
+        }
+    }
+    
+    // Laad planningen voor een specifieke datum
+    async function laadPlanningenVoorDatum(datum) {
         if (!planningLijst) return;
         
         planningLijst.innerHTML = '<p>Laden...</p>';
         
-        let query = window.supabase
+        const { data, error } = await window.supabase
             .from('planningen')
             .select(`
                 *,
                 adres:adres_id (id, instelling_naam, straat, postcode, plaats, telefoon, extra_info)
             `)
-            .order('datum', { ascending: true })
-            .order('route_volgorde', { ascending: true });
-        
-        if (typeFilter?.value && typeFilter.value !== 'alles') query = query.eq('type', typeFilter.value);
-        if (statusFilter?.value && statusFilter.value !== 'alles') query = query.eq('status', statusFilter.value);
-        if (datumFilter?.value) query = query.eq('datum', datumFilter.value);
-        
-        const { data, error } = await query;
+            .eq('datum', datum)
+            .order('dag_volgorde', { ascending: true })
+            .order('id', { ascending: true });
         
         if (error) {
             planningLijst.innerHTML = `<p class="error">Fout bij laden: ${error.message}</p>`;
             return;
         }
         
+        huidigePlanningen = data || [];
+        planningLijst.innerHTML = '';
+        
+        // Update display
+        const datumObj = new Date(datum + 'T00:00:00');
+        const dagVanWeek = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'][datumObj.getDay()];
+        dateDisplay.textContent = `${dagVanWeek} ${datumObj.getDate()} ${datumObj.toLocaleString('nl-NL', { month: 'long' })} ${datumObj.getFullYear()}`;
+        
+        const totaal = data?.length || 0;
+        const uitgevoerd = data?.filter(p => p.status === 'uitgevoerd').length || 0;
+        routeCountDisplay.textContent = `${uitgevoerd}/${totaal} ritten`;
+        
+        // Toon dag acties als er ritten zijn
+        dayActions.style.display = totaal > 0 ? 'block' : 'none';
+        
         if (!data || data.length === 0) {
-            planningLijst.innerHTML = '<p>Geen planningen gevonden.</p>';
+            planningLijst.innerHTML = '<p>Geen planningen voor deze dag. Klik op "+ Nieuwe planning" om er een toe te voegen.</p>';
             return;
         }
-        
-        huidigePlanningen = data;
-        planningLijst.innerHTML = '';
         
         // Toon de planningen in de huidige volgorde
         for (const planning of data) {
             const item = document.createElement('div');
             item.className = 'planning-item sortable-item';
             item.dataset.id = planning.id;
-            item.dataset.volgorde = planning.route_volgorde || 0;
+            item.dataset.volgorde = planning.dag_volgorde || 0;
             
-            // Bepaal status class
             let statusClass = planning.status === 'gepland' ? 'status-gepland' : 
                              (planning.status === 'uitgevoerd' ? 'status-uitgevoerd' : 'status-geannuleerd');
             
-            // Extra info voor type
             let extraInfo = '';
             if (planning.type === 'ophaling' && planning.aantal_tonnen) {
                 extraInfo = `<p>📦 <strong>Aantal volle tonnen:</strong> ${planning.aantal_tonnen} stuks</p>`;
@@ -158,20 +198,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 extraInfo = `<p>🚚 <strong>Aantal lege tonnen meenemen:</strong> ${planning.aantal_lege_tonnen} stuks</p>`;
             }
             
-            // Extra info weergeven
             let extraInfoText = '';
             if (planning.adres?.extra_info) {
                 extraInfoText = `<p class="adres-extra-info">📝 ${escapeHtml(planning.adres.extra_info)}</p>`;
             }
             
-            // Telefoon weergeven
             let telefoonText = '';
             if (planning.adres?.telefoon) {
                 telefoonText = `<p>📞 ${escapeHtml(planning.adres.telefoon)}</p>`;
             }
             
-            // Volgnummer (voor drag & drop visualisatie)
-            const volgnummer = planning.route_volgorde || (data.indexOf(planning) + 1);
+            const volgnummer = planning.dag_volgorde || (data.indexOf(planning) + 1);
             
             item.innerHTML = `
                 <div class="planning-info">
@@ -183,7 +220,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <p><strong>${escapeHtml(planning.adres?.instelling_naam || 'Onbekend')}</strong></p>
                     <p>📍 ${escapeHtml(planning.adres?.straat || '')}, ${escapeHtml(planning.adres?.postcode || '')} ${escapeHtml(planning.adres?.plaats || '')}</p>
-                    <p>📅 ${new Date(planning.datum).toLocaleDateString('nl-NL')}</p>
                     ${telefoonText}
                     ${extraInfo}
                     ${extraInfoText}
@@ -222,7 +258,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const list = document.getElementById('planningLijst');
         if (!list) return;
         
-        // Vernietig bestaande instance als die er is
         if (sortableInstance) {
             sortableInstance.destroy();
         }
@@ -235,8 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
             dragClass: 'sortable-drag',
             onEnd: function(evt) {
                 updateStopNumbers();
-                // Markeer dat de volgorde is gewijzigd
-                document.getElementById('saveRouteOrderBtn').style.display = 'inline-block';
+                saveRouteOrderBtn.style.display = 'inline-block';
             }
         });
     }
@@ -249,12 +283,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (badge) {
                 badge.textContent = `#${index + 1}`;
             }
-            // Update dataset volgorde
             item.dataset.volgorde = index + 1;
         });
     }
     
-    // Sla de route volgorde op in de database
+    // Sla de route volgorde op voor de huidige dag
     async function saveRouteOrder() {
         const items = document.querySelectorAll('#planningLijst .planning-item');
         const updates = [];
@@ -274,40 +307,64 @@ document.addEventListener('DOMContentLoaded', function() {
             for (const update of updates) {
                 const { error } = await window.supabase
                     .from('planningen')
-                    .update({ route_volgorde: update.volgorde })
+                    .update({ dag_volgorde: update.volgorde })
                     .eq('id', update.id);
                 
                 if (error) throw error;
             }
             
-            alert('Route volgorde succesvol opgeslagen!');
-            document.getElementById('saveRouteOrderBtn').style.display = 'none';
-            
-            // Herlaad de planningen
-            laadPlanningen();
+            alert('Route volgorde voor deze dag succesvol opgeslagen!');
+            saveRouteOrderBtn.style.display = 'none';
+            laadPlanningenVoorDatum(huidigeDatum);
             
         } catch (err) {
             alert('Fout bij opslaan: ' + err.message);
         }
     }
     
-    // Reset de route volgorde
-    async function resetRouteOrder() {
-        if (!confirm('Weet je zeker dat je de route volgorde wilt resetten?')) return;
+    // Reset de route volgorde voor de huidige dag
+    async function resetDagVolgorde() {
+        if (!confirm('Weet je zeker dat je de route volgorde voor deze dag wilt resetten?')) return;
         
         try {
             const { error } = await window.supabase
                 .from('planningen')
-                .update({ route_volgorde: 0 })
-                .neq('id', 0);
+                .update({ dag_volgorde: 0 })
+                .eq('datum', huidigeDatum);
             
             if (error) throw error;
             
-            alert('Route volgorde gereset!');
-            laadPlanningen();
+            alert('Route volgorde voor deze dag gereset!');
+            laadPlanningenVoorDatum(huidigeDatum);
             
         } catch (err) {
             alert('Fout bij resetten: ' + err.message);
+        }
+    }
+    
+    // Markeer alle ritten van de dag als uitgevoerd
+    async function markeerDagUitgevoerd() {
+        const items = document.querySelectorAll('#planningLijst .planning-item');
+        if (items.length === 0) return;
+        
+        if (!confirm(`Weet je zeker dat je alle ${items.length} ritten van deze dag wilt markeren als uitgevoerd?`)) return;
+        
+        try {
+            for (const item of items) {
+                const id = parseInt(item.dataset.id);
+                const { error } = await window.supabase
+                    .from('planningen')
+                    .update({ status: 'uitgevoerd' })
+                    .eq('id', id);
+                
+                if (error) throw error;
+            }
+            
+            alert('Alle ritten van deze dag gemarkeerd als uitgevoerd!');
+            laadPlanningenVoorDatum(huidigeDatum);
+            
+        } catch (err) {
+            alert('Fout: ' + err.message);
         }
     }
     
@@ -315,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function updateStatus(id, nieuweStatus) {
         const { error } = await window.supabase.from('planningen').update({ status: nieuweStatus }).eq('id', id);
         if (error) alert('Fout: ' + error.message);
-        else laadPlanningen();
+        else laadPlanningenVoorDatum(huidigeDatum);
     }
     
     // Verwijder planning
@@ -323,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!confirm('Weet je zeker dat je deze planning wilt verwijderen?')) return;
         const { error } = await window.supabase.from('planningen').delete().eq('id', id);
         if (error) alert('Fout: ' + error.message);
-        else laadPlanningen();
+        else laadPlanningenVoorDatum(huidigeDatum);
     }
     
     // Bewerk planning
@@ -357,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
             vulAdresDropdown();
             typeSelect.value = '';
             adresSelect.value = '';
-            document.getElementById('planningDatum').value = '';
+            document.getElementById('planningDatum').value = huidigeDatum || new Date().toISOString().split('T')[0];
             document.getElementById('aantalTonnen').value = '1';
             document.getElementById('aantalLegeTonnen').value = '1';
             document.getElementById('opmerkingen').value = '';
@@ -388,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 datum, 
                 opmerkingen: opmerkingen || null, 
                 status: 'gepland',
-                route_volgorde: 0 // Standaard volgorde, wordt later aangepast
+                dag_volgorde: 0
             };
             
             if (type === 'ophaling') planningData.aantal_tonnen = parseInt(aantalTonnen) || 1;
@@ -404,16 +461,135 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (error) alert('Fout: ' + error.message);
-            else { planningPopup.style.display = 'none'; laadPlanningen(); }
+            else { 
+                planningPopup.style.display = 'none';
+                // Update de dag volgorde na toevoegen
+                const { data: dagPlanningen } = await window.supabase
+                    .from('planningen')
+                    .select('*')
+                    .eq('datum', datum)
+                    .order('dag_volgorde', { ascending: true });
+                
+                if (dagPlanningen && dagPlanningen.length > 0) {
+                    await updateDagVolgorde(datum, dagPlanningen);
+                }
+                laadPlanningenVoorDatum(huidigeDatum);
+            }
         });
     }
     
     if (closePlanningPopup) closePlanningPopup.addEventListener('click', () => planningPopup.style.display = 'none');
-    if (filterBtn) filterBtn.addEventListener('click', laadPlanningen);
     if (saveRouteOrderBtn) saveRouteOrderBtn.addEventListener('click', saveRouteOrder);
-    if (clearRouteOrderBtn) clearRouteOrderBtn.addEventListener('click', resetRouteOrder);
     
-    // WhatsApp functies
+    // Datum navigatie
+    function changeDate(delta) {
+        const current = new Date(selectedDateInput.value + 'T00:00:00');
+        current.setDate(current.getDate() + delta);
+        const newDate = current.toISOString().split('T')[0];
+        selectedDateInput.value = newDate;
+        huidigeDatum = newDate;
+        laadPlanningenVoorDatum(newDate);
+    }
+    
+    if (prevDayBtn) prevDayBtn.addEventListener('click', () => changeDate(-1));
+    if (nextDayBtn) nextDayBtn.addEventListener('click', () => changeDate(1));
+    
+    if (todayBtn) {
+        todayBtn.addEventListener('click', () => {
+            const vandaag = new Date().toISOString().split('T')[0];
+            selectedDateInput.value = vandaag;
+            huidigeDatum = vandaag;
+            laadPlanningenVoorDatum(vandaag);
+        });
+    }
+    
+    if (selectedDateInput) {
+        selectedDateInput.addEventListener('change', (e) => {
+            huidigeDatum = e.target.value;
+            laadPlanningenVoorDatum(e.target.value);
+        });
+    }
+    
+    // Dag acties
+    if (markeerDagUitgevoerdBtn) markeerDagUitgevoerdBtn.addEventListener('click', markeerDagUitgevoerd);
+    if (resetDagVolgordeBtn) resetDagVolgordeBtn.addEventListener('click', resetDagVolgorde);
+    
+    // WhatsApp voor hele dag
+    if (genereerWhatsAppDagBtn) {
+        genereerWhatsAppDagBtn.addEventListener('click', () => {
+            const items = document.querySelectorAll('#planningLijst .planning-item');
+            if (items.length === 0) {
+                alert('Geen ritten voor deze dag.');
+                return;
+            }
+            
+            const chauffeurTel = chauffeurSelect?.value;
+            if (!chauffeurTel) {
+                alert('Selecteer eerst een chauffeur.');
+                return;
+            }
+            
+            // Verzamel de planning data
+            const planningData = [];
+            items.forEach(item => {
+                const id = parseInt(item.dataset.id);
+                const planning = huidigePlanningen.find(p => p.id === id);
+                if (planning) {
+                    planningData.push(planning);
+                }
+            });
+            
+            // Genereer WhatsApp bericht
+            const datum = new Date(huidigeDatum + 'T00:00:00');
+            const datumStr = datum.toLocaleDateString('nl-NL');
+            let bericht = `🚚 *ABBOTT ROUTE PLANNING* 🚚\n\n`;
+            bericht += `📅 *Datum:* ${datumStr}\n`;
+            bericht += `📍 *START & EINDE:* Schoonmansveld 48, 2870 Puurs\n\n`;
+            bericht += `*📋 CIRCULAIRE ROUTE (${planningData.length} stops)*\n`;
+            bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            
+            planningData.forEach((planning, index) => {
+                bericht += `${index + 1}. *${planning.adres?.instelling_naam || 'Onbekend'}*\n`;
+                bericht += `   📍 ${planning.adres?.straat || ''}\n`;
+                bericht += `   📮 ${planning.adres?.postcode || ''} ${planning.adres?.plaats || ''}\n`;
+                if (planning.type === 'ophaling') {
+                    bericht += `   📦 OPHALING: ${planning.aantal_tonnen || 1} volle ton(nen)\n`;
+                } else if (planning.type === 'plaatsing') {
+                    bericht += `   🚚 PLAATSING: ${planning.aantal_lege_tonnen || 1} lege ton(nen)\n`;
+                }
+                if (planning.adres?.telefoon) {
+                    bericht += `   📞 Contact: ${planning.adres.telefoon}\n`;
+                }
+                if (planning.adres?.extra_info) {
+                    bericht += `   📝 *EXTRA INFO:* ${planning.adres.extra_info}\n`;
+                }
+                if (planning.opmerkingen) {
+                    bericht += `   📋 *OPMERKINGEN:* ${planning.opmerkingen}\n`;
+                }
+                bericht += `\n`;
+            });
+            
+            bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            bericht += `${planningData.length + 1}. *TERUGKEER NAAR BASIS*\n`;
+            bericht += `   📍 Schoonmansveld 48, 2870 Puurs\n`;
+            bericht += `   🏁 EINDE RIT\n\n`;
+            
+            bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+            bericht += `🗺️ Open in Waze:\n`;
+            bericht += `https://www.waze.com/ul?ll=51.0589,4.2863&navigate=yes&q=`;
+            
+            const adressenVoorRoute = planningData.map(p => 
+                encodeURIComponent(`${p.adres?.straat || ''}, ${p.adres?.postcode || ''} ${p.adres?.plaats || ''}`)
+            );
+            bericht += adressenVoorRoute.join('&q=');
+            bericht += `&q=${encodeURIComponent('Schoonmansveld 48, 2870 Puurs')}`;
+            
+            if (whatsappBericht) whatsappBericht.value = bericht;
+            whatsappPopup.style.display = 'flex';
+        });
+    }
+    
+    // WhatsApp versturen
     if (sendWhatsAppBtn) {
         sendWhatsAppBtn.addEventListener('click', () => {
             const telefoon = chauffeurSelect?.value;
@@ -468,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Initialiseer
-    laadPlanningen();
+    laadPlanningenVoorDatum(huidigeDatum);
     laadChauffeurs();
     
 });
