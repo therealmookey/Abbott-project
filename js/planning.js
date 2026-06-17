@@ -121,163 +121,467 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
-  // ===== AI OPTIMALISATIE (via Edge Function) =====
-async function optimaliseerMetAI(datum) {
-    // Verzamel alle adressen voor deze datum
-    const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
-    const adressenList = [];
-    
-    items.forEach(item => {
-        const id = parseInt(item.dataset.id);
-        const planning = allePlanningen.find(p => p.id === id);
-        if (planning && planning.adres) {
-            adressenList.push({
-                id: planning.id,
-                instelling_naam: planning.adres.instelling_naam,
-                straat: planning.adres.straat,
-                postcode: planning.adres.postcode,
-                plaats: planning.adres.plaats
-            });
-        }
-    });
-    
-    if (adressenList.length === 0) {
-        alert('Geen adressen gevonden voor deze dag.');
-        return;
-    }
-    
-    if (adressenList.length < 2) {
-        alert('Er zijn minimaal 2 adressen nodig voor optimalisatie.');
-        return;
-    }
-    
-    // Toon loading state
-    const btn = document.querySelector(`.ai-optimize-btn[data-datum="${datum}"]`);
-    if (!btn) {
-        alert('AI knop niet gevonden.');
-        return;
-    }
-    const origText = btn.textContent;
-    btn.textContent = 'Bezig...';
-    btn.disabled = true;
-    
-    try {
-        // Haal de Supabase session token op
-        const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
-        
-        if (sessionError) {
-            console.error('Session error:', sessionError);
-            throw new Error('Kon sessie niet ophalen: ' + sessionError.message);
-        }
-        
-        const token = session?.access_token;
-        
-        if (!token) {
-            console.log('Geen token gevonden, probeer refresh...');
-            // Probeer de gebruiker opnieuw te authenticeren
-            const { data: { user } } = await window.supabase.auth.getUser();
-            if (!user) {
-                throw new Error('Je bent niet ingelogd. Log opnieuw in.');
-            }
-            // Haal een verse sessie op
-            const { data: refreshData } = await window.supabase.auth.refreshSession();
-            const refreshToken = refreshData?.session?.access_token;
-            if (!refreshToken) {
-                throw new Error('Kon geen geldige sessie verkrijgen. Log opnieuw in.');
-            }
-            var finalToken = refreshToken;
-        } else {
-            var finalToken = token;
-        }
-        
-        console.log('Token aanwezig:', finalToken ? 'Ja' : 'Nee');
-        
-        // Roep de Edge Function aan
-        const response = await fetch(
-            'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/optimize',
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + finalToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    adressen: adressenList,
-                    datum: datum 
-                })
-            }
-        );
-        
-        const result = await response.json();
-        
-        console.log('Response status:', response.status);
-        console.log('Response result:', result);
-        
-        if (!response.ok) {
-            throw new Error(result.error || 'Er ging iets mis met de AI');
-        }
-        
-        if (!result.success) {
-            throw new Error(result.error || 'AI optimalisatie mislukt');
-        }
-        
-        let nieuweVolgorde = result.volgorde;
-        
-        if (!nieuweVolgorde || nieuweVolgorde.length === 0) {
-            throw new Error('Geen geldige volgorde ontvangen van AI');
-        }
-        
-        // Debug logs
-        var huidigeVolgorde = adressenList.map(function(a) { return a.id; });
-        console.log('Huidige volgorde:', huidigeVolgorde);
-        console.log('Nieuwe volgorde:', nieuweVolgorde);
-        
-        // Controleer of de volgorde verandert
-        var isGelijk = JSON.stringify(huidigeVolgorde) === JSON.stringify(nieuweVolgorde);
-        if (isGelijk) {
-            alert('De AI heeft geen betere volgorde gevonden. De huidige volgorde is al optimaal.');
-            btn.textContent = origText;
-            btn.disabled = false;
+    // ===== PDF GENERATIE VOOR ROUTE =====
+    function genereerPDFVoorDatum(datum) {
+        const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
+        if (items.length === 0) {
+            alert('Geen ritten voor deze datum.');
             return;
         }
         
-        // Sla de nieuwe volgorde op
-        for (var i = 0; i < nieuweVolgorde.length; i++) {
-            var planningId = nieuweVolgorde[i];
-            var volgorde = i + 1;
+        // Verzamel de planning data voor deze datum
+        const planningData = [];
+        items.forEach(item => {
+            const id = parseInt(item.dataset.id);
+            const planning = allePlanningen.find(p => p.id === id);
+            if (planning) {
+                planningData.push(planning);
+            }
+        });
+        
+        // Haal de geselecteerde chauffeur voor deze datum
+        const chauffeurSelect = document.querySelector(`.datum-header[data-datum="${datum}"] .chauffeur-select`);
+        const chauffeurTel = chauffeurSelect ? chauffeurSelect.value : '';
+        const chauffeurNaam = chauffeurSelect ? chauffeurSelect.options[chauffeurSelect.selectedIndex]?.text || 'Niet geselecteerd' : 'Niet geselecteerd';
+        
+        // Genereer de HTML voor de PDF
+        const datumObj = new Date(datum + 'T00:00:00');
+        const dagVanWeek = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'][datumObj.getDay()];
+        const datumStr = `${dagVanWeek} ${datumObj.getDate()} ${datumObj.toLocaleString('nl-NL', { month: 'long' })} ${datumObj.getFullYear()}`;
+        
+        let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Routeplanning Abbott - ${datumStr}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Segoe UI', Arial, sans-serif; 
+                    padding: 40px; 
+                    background: white;
+                    color: #333;
+                }
+                .route-pdf {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 30px;
+                    background: white;
+                    border: 1px solid #e9ecef;
+                    border-radius: 12px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 3px solid #2c7da0;
+                    padding-bottom: 20px;
+                    margin-bottom: 25px;
+                }
+                .header h1 {
+                    color: #2c7da0;
+                    font-size: 28px;
+                    margin-bottom: 5px;
+                }
+                .header h2 {
+                    color: #1f5e7e;
+                    font-size: 18px;
+                    font-weight: 400;
+                }
+                .header .datum {
+                    color: #6c757d;
+                    font-size: 14px;
+                    margin-top: 8px;
+                }
+                .header .chauffeur-info {
+                    margin-top: 10px;
+                    padding: 8px 16px;
+                    background: #f8f9fa;
+                    border-radius: 6px;
+                    display: inline-block;
+                    font-size: 14px;
+                }
+                .start-location {
+                    background: #e8f4f8;
+                    padding: 15px 20px;
+                    border-radius: 8px;
+                    margin-bottom: 25px;
+                    border-left: 4px solid #2c7da0;
+                }
+                .start-location strong {
+                    color: #2c7da0;
+                    font-size: 16px;
+                }
+                .start-location p {
+                    margin-top: 4px;
+                    font-size: 14px;
+                }
+                .route-stops {
+                    margin-bottom: 25px;
+                }
+                .route-stops h3 {
+                    color: #2c7da0;
+                    font-size: 18px;
+                    margin-bottom: 15px;
+                    padding-bottom: 8px;
+                    border-bottom: 2px solid #e9ecef;
+                }
+                .stop-item {
+                    display: flex;
+                    gap: 15px;
+                    padding: 12px 16px;
+                    margin-bottom: 8px;
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                    border-left: 3px solid #2c7da0;
+                }
+                .stop-number {
+                    font-weight: bold;
+                    color: #2c7da0;
+                    min-width: 30px;
+                    font-size: 16px;
+                }
+                .stop-details {
+                    flex: 1;
+                }
+                .stop-details strong {
+                    color: #2c7da0;
+                    font-size: 15px;
+                }
+                .stop-details .adres {
+                    color: #555;
+                    font-size: 13px;
+                    margin-top: 2px;
+                }
+                .stop-details .extra {
+                    color: #6c757d;
+                    font-size: 12px;
+                    margin-top: 4px;
+                    padding: 4px 8px;
+                    background: #fff8e1;
+                    border-radius: 4px;
+                    display: inline-block;
+                }
+                .stop-details .opmerking {
+                    color: #0d47a1;
+                    font-size: 12px;
+                    margin-top: 4px;
+                    padding: 4px 8px;
+                    background: #e3f2fd;
+                    border-radius: 4px;
+                    display: inline-block;
+                }
+                .stop-details .telefoon {
+                    color: #2c7da0;
+                    font-size: 12px;
+                    margin-top: 4px;
+                }
+                .stop-details .type {
+                    font-size: 12px;
+                    font-weight: 600;
+                    margin-top: 4px;
+                    display: inline-block;
+                    padding: 2px 10px;
+                    background: #e9ecef;
+                    border-radius: 12px;
+                }
+                .return-location {
+                    background: #d4edda;
+                    padding: 15px 20px;
+                    border-radius: 8px;
+                    margin-top: 20px;
+                    border-left: 4px solid #28a745;
+                }
+                .return-location strong {
+                    color: #155724;
+                    font-size: 16px;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 30px;
+                    padding-top: 15px;
+                    border-top: 1px solid #e9ecef;
+                    font-size: 12px;
+                    color: #6c757d;
+                }
+                .footer .generated {
+                    color: #adb5bd;
+                }
+                .summary {
+                    background: #f8f9fa;
+                    padding: 12px 16px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                }
+                .summary-item {
+                    font-size: 14px;
+                }
+                .summary-item strong {
+                    color: #2c7da0;
+                }
+                @media print {
+                    body { padding: 20px; }
+                    .route-pdf { border: none; padding: 0; }
+                    .stop-item { break-inside: avoid; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="route-pdf" id="pdf-content">
+                <div class="header">
+                    <h1>🚚 ABBOTT ROUTEPLANNING</h1>
+                    <h2>Routeoverzicht voor chauffeur</h2>
+                    <div class="datum">📅 ${datumStr}</div>
+                    <div class="chauffeur-info">👨‍✈️ Chauffeur: ${escapeHtml(chauffeurNaam)} ${chauffeurTel ? '📞 ' + escapeHtml(chauffeurTel) : ''}</div>
+                </div>
+                
+                <div class="start-location">
+                    <strong>🚀 VERTREKPUNT</strong>
+                    <p>📍 ${START_LOCATIE.adres}</p>
+                </div>
+                
+                <div class="route-stops">
+                    <h3>📋 ROUTE (${planningData.length} stops)</h3>
+        `;
+        
+        planningData.forEach((planning, index) => {
+            const volgnummer = planning.dag_volgorde || (index + 1);
+            let typeInfo = '';
+            if (planning.type === 'ophaling') {
+                typeInfo = `📦 OPHALING - ${planning.aantal_tonnen || 1} volle ton(nen)`;
+            } else if (planning.type === 'plaatsing') {
+                typeInfo = `🚚 PLAATSING - ${planning.aantal_lege_tonnen || 1} lege ton(nen)`;
+            }
             
-            var updateResult = await window.supabase
-                .from('planningen')
-                .update({ dag_volgorde: volgorde })
-                .eq('id', planningId);
+            let extraInfo = '';
+            if (planning.adres?.extra_info) {
+                extraInfo = `<div class="extra">📝 ${escapeHtml(planning.adres.extra_info)}</div>`;
+            }
             
-            if (updateResult.error) throw updateResult.error;
+            let opmerking = '';
+            if (planning.opmerkingen) {
+                opmerking = `<div class="opmerking">📋 ${escapeHtml(planning.opmerkingen)}</div>`;
+            }
+            
+            let telefoon = '';
+            if (planning.adres?.telefoon) {
+                telefoon = `<div class="telefoon">📞 ${escapeHtml(planning.adres.telefoon)}</div>`;
+            }
+            
+            html += `
+                <div class="stop-item">
+                    <div class="stop-number">#${volgnummer}</div>
+                    <div class="stop-details">
+                        <strong>${escapeHtml(planning.adres?.instelling_naam || 'Onbekend')}</strong>
+                        <div class="adres">📍 ${escapeHtml(planning.adres?.straat || '')}, ${escapeHtml(planning.adres?.postcode || '')} ${escapeHtml(planning.adres?.plaats || '')}</div>
+                        <div class="type">${typeInfo}</div>
+                        ${telefoon}
+                        ${extraInfo}
+                        ${opmerking}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+                
+                <div class="return-location">
+                    <strong>🏁 TERUGKEER NAAR BASIS</strong>
+                    <p>📍 ${START_LOCATIE.adres}</p>
+                </div>
+                
+                <div class="summary">
+                    <span class="summary-item"><strong>📋 Aantal stops:</strong> ${planningData.length}</span>
+                    <span class="summary-item"><strong>📅 Datum:</strong> ${datumStr}</span>
+                    <span class="summary-item"><strong>👨‍✈️ Chauffeur:</strong> ${escapeHtml(chauffeurNaam)}</span>
+                </div>
+                
+                <div class="footer">
+                    <div>Route gegenereerd via Abbott Platform</div>
+                    <div class="generated">Gegenereerd op ${new Date().toLocaleString('nl-NL')}</div>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+        
+        // Open een nieuw venster en print
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            alert('Popup geblokkeerd! Sta popups toe voor deze site.');
+            return;
         }
         
-        alert('Route geoptimaliseerd! De volgorde is aangepast op basis van AI-advies.');
+        printWindow.document.write(html);
+        printWindow.document.close();
         
-        // Herlaad de planning
-        await laadPlanningen();
-        
-        // Scroll naar de datum header
-        var datumHeader = document.querySelector('.datum-header[data-datum="' + datum + '"]');
-        if (datumHeader) {
-            datumHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            datumHeader.style.transition = 'background-color 0.5s';
-            datumHeader.style.backgroundColor = '#d4edda';
+        // Wacht tot de inhoud is geladen en print dan
+        printWindow.onload = function() {
             setTimeout(function() {
-                datumHeader.style.backgroundColor = '';
-            }, 2000);
+                printWindow.focus();
+                printWindow.print();
+            }, 500);
+        };
+    }
+    
+    // ===== AI OPTIMALISATIE (via Edge Function) =====
+    async function optimaliseerMetAI(datum) {
+        // Verzamel alle adressen voor deze datum
+        const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
+        const adressenList = [];
+        
+        items.forEach(item => {
+            const id = parseInt(item.dataset.id);
+            const planning = allePlanningen.find(p => p.id === id);
+            if (planning && planning.adres) {
+                adressenList.push({
+                    id: planning.id,
+                    instelling_naam: planning.adres.instelling_naam,
+                    straat: planning.adres.straat,
+                    postcode: planning.adres.postcode,
+                    plaats: planning.adres.plaats
+                });
+            }
+        });
+        
+        if (adressenList.length === 0) {
+            alert('Geen adressen gevonden voor deze dag.');
+            return;
         }
         
-    } catch (err) {
-        console.error('AI optimalisatie fout:', err);
-        alert('Fout bij AI optimalisatie: ' + err.message);
-    } finally {
-        btn.textContent = origText;
-        btn.disabled = false;
+        if (adressenList.length < 2) {
+            alert('Er zijn minimaal 2 adressen nodig voor optimalisatie.');
+            return;
+        }
+        
+        // Toon loading state
+        const btn = document.querySelector(`.ai-optimize-btn[data-datum="${datum}"]`);
+        if (!btn) {
+            alert('AI knop niet gevonden.');
+            return;
+        }
+        const origText = btn.textContent;
+        btn.textContent = 'Bezig...';
+        btn.disabled = true;
+        
+        try {
+            // Haal de Supabase session token op
+            const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
+            
+            if (sessionError) {
+                console.error('Session error:', sessionError);
+                throw new Error('Kon sessie niet ophalen: ' + sessionError.message);
+            }
+            
+            const token = session?.access_token;
+            
+            if (!token) {
+                console.log('Geen token gevonden, probeer refresh...');
+                const { data: { user } } = await window.supabase.auth.getUser();
+                if (!user) {
+                    throw new Error('Je bent niet ingelogd. Log opnieuw in.');
+                }
+                const { data: refreshData } = await window.supabase.auth.refreshSession();
+                const refreshToken = refreshData?.session?.access_token;
+                if (!refreshToken) {
+                    throw new Error('Kon geen geldige sessie verkrijgen. Log opnieuw in.');
+                }
+                var finalToken = refreshToken;
+            } else {
+                var finalToken = token;
+            }
+            
+            console.log('Token aanwezig:', finalToken ? 'Ja' : 'Nee');
+            
+            // Roep de Edge Function aan
+            const response = await fetch(
+                'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/optimize',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + finalToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        adressen: adressenList,
+                        datum: datum 
+                    })
+                }
+            );
+            
+            const result = await response.json();
+            
+            console.log('Response status:', response.status);
+            console.log('Response result:', result);
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Er ging iets mis met de AI');
+            }
+            
+            if (!result.success) {
+                throw new Error(result.error || 'AI optimalisatie mislukt');
+            }
+            
+            let nieuweVolgorde = result.volgorde;
+            
+            if (!nieuweVolgorde || nieuweVolgorde.length === 0) {
+                throw new Error('Geen geldige volgorde ontvangen van AI');
+            }
+            
+            // Debug logs
+            var huidigeVolgorde = adressenList.map(function(a) { return a.id; });
+            console.log('Huidige volgorde:', huidigeVolgorde);
+            console.log('Nieuwe volgorde:', nieuweVolgorde);
+            
+            // Controleer of de volgorde verandert
+            var isGelijk = JSON.stringify(huidigeVolgorde) === JSON.stringify(nieuweVolgorde);
+            if (isGelijk) {
+                alert('De AI heeft geen betere volgorde gevonden. De huidige volgorde is al optimaal.');
+                btn.textContent = origText;
+                btn.disabled = false;
+                return;
+            }
+            
+            // Sla de nieuwe volgorde op
+            for (var i = 0; i < nieuweVolgorde.length; i++) {
+                var planningId = nieuweVolgorde[i];
+                var volgorde = i + 1;
+                
+                var updateResult = await window.supabase
+                    .from('planningen')
+                    .update({ dag_volgorde: volgorde })
+                    .eq('id', planningId);
+                
+                if (updateResult.error) throw updateResult.error;
+            }
+            
+            alert('Route geoptimaliseerd! De volgorde is aangepast op basis van AI-advies.');
+            
+            // Herlaad de planning
+            await laadPlanningen();
+            
+            // Scroll naar de datum header
+            var datumHeader = document.querySelector('.datum-header[data-datum="' + datum + '"]');
+            if (datumHeader) {
+                datumHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                datumHeader.style.transition = 'background-color 0.5s';
+                datumHeader.style.backgroundColor = '#d4edda';
+                setTimeout(function() {
+                    datumHeader.style.backgroundColor = '';
+                }, 2000);
+            }
+            
+        } catch (err) {
+            console.error('AI optimalisatie fout:', err);
+            alert('Fout bij AI optimalisatie: ' + err.message);
+        } finally {
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
     }
-}
     
     // Laad alle planningen, gesorteerd op datum
     async function laadPlanningen() {
@@ -347,6 +651,7 @@ async function optimaliseerMetAI(datum) {
                     <button class="btn btn-success markeer-dag-btn" data-datum="${datum}">✅ Uitgevoerd</button>
                     <button class="btn btn-primary whatsapp-dag-btn" data-datum="${datum}">📱 WhatsApp</button>
                     <button class="btn btn-primary ai-optimize-btn" data-datum="${datum}">🤖 AI Optimaliseer</button>
+                    <button class="btn btn-secondary pdf-dag-btn" data-datum="${datum}">📄 PDF Route</button>
                 </div>
             `;
             planningLijst.appendChild(datumHeader);
@@ -364,6 +669,7 @@ async function optimaliseerMetAI(datum) {
             datumHeader.querySelector('.markeer-dag-btn').addEventListener('click', () => markeerDagUitgevoerd(datum));
             datumHeader.querySelector('.whatsapp-dag-btn').addEventListener('click', () => genereerWhatsAppVoorDatum(datum));
             datumHeader.querySelector('.ai-optimize-btn').addEventListener('click', () => optimaliseerMetAI(datum));
+            datumHeader.querySelector('.pdf-dag-btn').addEventListener('click', () => genereerPDFVoorDatum(datum));
             
             // Planning items voor deze datum
             for (let i = 0; i < items.length; i++) {

@@ -1622,3 +1622,92 @@ hr {
         width: 100%;
     }
 }
+/* ===== PDF KNO ===== */
+.pdf-dag-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+.pdf-dag-btn:hover {
+    background-color: #c82333;
+}
+
+/* ===== PDF PRINT STIJLEN ===== */
+@media print {
+    /* Verberg navigatie en knoppen bij printen */
+    .main-nav,
+    .btn,
+    .search-section,
+    .filter-section,
+    .page-header .header-buttons,
+    .datum-actions .btn,
+    .datum-actions .chauffeur-selector-wrapper,
+    .datum-count,
+    .route-actions-bottom,
+    .day-actions,
+    #planningPopup,
+    #whatsappPopup {
+        display: none !important;
+    }
+    
+    /* Toon alleen de planning items */
+    .container {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    .planning-item {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+    
+    .planning-item .planning-buttons {
+        display: none !important;
+    }
+    
+    .planning-item .drag-handle {
+        display: none !important;
+    }
+    
+    .datum-header {
+        background: #f0f0f0 !important;
+        border-left: 4px solid #2c7da0 !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+    }
+    
+    .datum-header .datum-actions {
+        display: none !important;
+    }
+    
+    .planning-status {
+        font-size: 0.7rem !important;
+        padding: 2px 8px !important;
+    }
+    
+    .stop-number-badge {
+        background: #2c7da0 !important;
+        color: white !important;
+    }
+    
+    .adres-extra-info {
+        background: #fff8e1 !important;
+        padding: 4px 8px !important;
+        border-radius: 4px !important;
+        font-size: 0.8rem !important;
+    }
+    
+    body {
+        background: white !important;
+        font-size: 11pt !important;
+    }
+}
+
+/* ===== RESPONSIVE PDF KNO ===== */
+@media (max-width: 768px) {
+    .pdf-dag-btn {
+        width: 100%;
+    }
+}
