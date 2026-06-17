@@ -1544,3 +1544,60 @@ hr {
         min-width: 120px;
     }
 }
+/* ===== CHAUFFEUR SELECTOR IN DATUM HEADER ===== */
+.chauffeur-selector-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.chauffeur-selector-wrapper label {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #2c7da0;
+    font-weight: 600;
+}
+
+.chauffeur-select {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    background: white;
+    min-width: 120px;
+    margin: 0;
+}
+
+.chauffeur-select:focus {
+    outline: none;
+    border-color: #2c7da0;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .datum-actions {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    .datum-actions .btn {
+        width: 100%;
+    }
+    
+    .chauffeur-selector-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    .chauffeur-selector-wrapper label {
+        text-align: center;
+    }
+    
+    .chauffeur-select {
+        width: 100%;
+        padding: 6px 10px;
+    }
+}

@@ -1,4 +1,4 @@
-// ===== PLANNING FUNCTIES - 1 LIJST OP DATUM =====
+// ===== PLANNING FUNCTIES - 1 LIJST OP DATUM MET CHAUFFEUR PER DAG =====
 
 console.log('planning.js geladen');
 
@@ -34,12 +34,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendWhatsAppBtn = document.getElementById('sendWhatsAppBtn');
     const copyBerichtBtn = document.getElementById('copyBerichtBtn');
     const whatsappBericht = document.getElementById('whatsappBericht');
-    const chauffeurSelect = document.getElementById('chauffeurSelect');
     
     let currentPlanningId = null;
     let adressen = [];
     let allePlanningen = [];
+    let chauffeurs = [];
     let sortableInstance = null;
+    let huidigeWhatsAppDatum = '';
     
     // Laad adressen voor dropdown
     async function laadAdressen() {
@@ -67,16 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Toon/verberg velden op basis van type
-    if (typeSelect) {
-        typeSelect.addEventListener('change', (e) => {
-            const type = e.target.value;
-            ophalingVelden.style.display = type === 'ophaling' ? 'block' : 'none';
-            plaatsingVelden.style.display = type === 'plaatsing' ? 'block' : 'none';
-        });
-    }
-    
-    // Laad chauffeurs voor WhatsApp
+    // Laad chauffeurs
     async function laadChauffeurs() {
         const { data, error } = await window.supabase
             .from('gebruikers_rollen')
@@ -88,15 +80,45 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (chauffeurSelect) {
-            chauffeurSelect.innerHTML = '<option value="">Selecteer een chauffeur...</option>';
-            data.forEach(chauffeur => {
-                const option = document.createElement('option');
-                option.value = chauffeur.chauffeur_telefoon || '';
-                option.textContent = `${chauffeur.gebruikersnaam || 'Chauffeur'} - ${chauffeur.chauffeur_telefoon || 'geen telefoon'}`;
-                chauffeurSelect.appendChild(option);
-            });
+        chauffeurs = data || [];
+    }
+    
+    // Toon/verberg velden op basis van type
+    if (typeSelect) {
+        typeSelect.addEventListener('change', (e) => {
+            const type = e.target.value;
+            ophalingVelden.style.display = type === 'ophaling' ? 'block' : 'none';
+            plaatsingVelden.style.display = type === 'plaatsing' ? 'block' : 'none';
+        });
+    }
+    
+    // Genereer chauffeur dropdown HTML
+    function generateChauffeurDropdown(selectedValue) {
+        let html = '<select class="chauffeur-select" data-datum="">';
+        html += '<option value="">Geen chauffeur geselecteerd</option>';
+        
+        for (const chauffeur of chauffeurs) {
+            const selected = chauffeur.chauffeur_telefoon === selectedValue ? 'selected' : '';
+            const label = `${chauffeur.gebruikersnaam || 'Chauffeur'} - ${chauffeur.chauffeur_telefoon || 'geen telefoon'}`;
+            html += `<option value="${chauffeur.chauffeur_telefoon || ''}" ${selected}>${label}</option>`;
         }
+        html += '</select>';
+        return html;
+    }
+    
+    // Sla chauffeur keuze op in localStorage per datum
+    function saveChauffeurForDate(datum, chauffeurTelefoon) {
+        const key = `chauffeur_${datum}`;
+        if (chauffeurTelefoon) {
+            localStorage.setItem(key, chauffeurTelefoon);
+        } else {
+            localStorage.removeItem(key);
+        }
+    }
+    
+    function getChauffeurForDate(datum) {
+        const key = `chauffeur_${datum}`;
+        return localStorage.getItem(key) || '';
     }
     
     // Laad alle planningen, gesorteerd op datum
@@ -104,6 +126,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!planningLijst) return;
         
         planningLijst.innerHTML = '<p>Laden...</p>';
+        
+        // Eerst chauffeurs laden als die nog niet geladen zijn
+        if (chauffeurs.length === 0) {
+            await laadChauffeurs();
+        }
         
         const { data, error } = await window.supabase
             .from('planningen')
@@ -128,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Groepeer per datum voor de nummering
+        // Groepeer per datum
         const datumGroepen = {};
         for (const planning of data) {
             if (!datumGroepen[planning.datum]) {
@@ -139,26 +166,46 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Toon planningen met per datum opnieuw beginnende nummering
         for (const datum of Object.keys(datumGroepen).sort()) {
-            // Datum header
             const datumObj = new Date(datum + 'T00:00:00');
             const dagVanWeek = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'][datumObj.getDay()];
+            const items = datumGroepen[datum];
+            const opgeslagenChauffeur = getChauffeurForDate(datum);
+            
+            // Datum header met chauffeur selector
             const datumHeader = document.createElement('div');
             datumHeader.className = 'datum-header';
+            datumHeader.dataset.datum = datum;
             datumHeader.innerHTML = `
                 <div class="datum-header-content">
                     <span class="datum-dag">${dagVanWeek}</span>
                     <span class="datum-datum">${datumObj.getDate()} ${datumObj.toLocaleString('nl-NL', { month: 'long' })} ${datumObj.getFullYear()}</span>
-                    <span class="datum-count">${datumGroepen[datum].length} ritten</span>
+                    <span class="datum-count">${items.length} ritten</span>
                 </div>
                 <div class="datum-actions">
-                    <button class="btn btn-success markeer-dag-btn" data-datum="${datum}">✅ Markeer dag uitgevoerd</button>
-                    <button class="btn btn-primary whatsapp-dag-btn" data-datum="${datum}">📱 WhatsApp dagroute</button>
+                    <div class="chauffeur-selector-wrapper">
+                        <label>👨‍✈️ Chauffeur:</label>
+                        ${generateChauffeurDropdown(opgeslagenChauffeur)}
+                    </div>
+                    <button class="btn btn-success markeer-dag-btn" data-datum="${datum}">✅ Uitgevoerd</button>
+                    <button class="btn btn-primary whatsapp-dag-btn" data-datum="${datum}">📱 WhatsApp</button>
                 </div>
             `;
             planningLijst.appendChild(datumHeader);
             
+            // Event listener voor chauffeur selectie
+            const chauffeurSelect = datumHeader.querySelector('.chauffeur-select');
+            if (chauffeurSelect) {
+                chauffeurSelect.dataset.datum = datum;
+                chauffeurSelect.addEventListener('change', (e) => {
+                    saveChauffeurForDate(datum, e.target.value);
+                });
+            }
+            
+            // Event listeners voor dag acties
+            datumHeader.querySelector('.markeer-dag-btn').addEventListener('click', () => markeerDagUitgevoerd(datum));
+            datumHeader.querySelector('.whatsapp-dag-btn').addEventListener('click', () => genereerWhatsAppVoorDatum(datum));
+            
             // Planning items voor deze datum
-            const items = datumGroepen[datum];
             for (let i = 0; i < items.length; i++) {
                 const planning = items[i];
                 const item = document.createElement('div');
@@ -229,15 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.addEventListener('click', () => verwijderPlanning(btn.dataset.id));
         });
         
-        // Event listeners voor dag acties
-        document.querySelectorAll('.markeer-dag-btn').forEach(btn => {
-            btn.addEventListener('click', () => markeerDagUitgevoerd(btn.dataset.datum));
-        });
-        document.querySelectorAll('.whatsapp-dag-btn').forEach(btn => {
-            btn.addEventListener('click', () => genereerWhatsAppVoorDatum(btn.dataset.datum));
-        });
-        
-        // Initialiseer SortableJS voor drag & drop (alleen binnen dezelfde datum)
+        // Initialiseer SortableJS
         initSortable();
     }
     
@@ -256,13 +295,10 @@ document.addEventListener('DOMContentLoaded', function() {
             ghostClass: 'sortable-ghost',
             chosenClass: 'sortable-chosen',
             dragClass: 'sortable-drag',
-            // Filter: alleen items binnen dezelfde datum kunnen gesleept worden
             filter: '.datum-header',
             preventOnFilter: false,
             onEnd: function(evt) {
-                // Update de nummering
                 updateStopNumbers();
-                // Sla de volgorde op voor de betreffende datum
                 const datum = evt.item.dataset.datum;
                 if (datum) {
                     saveRouteOrderForDate(datum);
@@ -355,9 +391,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const chauffeurTel = chauffeurSelect?.value;
+        // Haal de geselecteerde chauffeur voor deze datum
+        const chauffeurSelect = document.querySelector(`.datum-header[data-datum="${datum}"] .chauffeur-select`);
+        const chauffeurTel = chauffeurSelect ? chauffeurSelect.value : '';
+        
         if (!chauffeurTel) {
-            alert('Selecteer eerst een chauffeur.');
+            alert('Selecteer eerst een chauffeur voor deze dag via de dropdown bij de datum header.');
             return;
         }
         
@@ -373,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Genereer WhatsApp bericht
         const datumObj = new Date(datum + 'T00:00:00');
-        const datumStr = datumObj.toLocaleDateString('nl-NL');
+        const datumStr = datumObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         let bericht = `🚚 *ABBOTT ROUTE PLANNING* 🚚\n\n`;
         bericht += `📅 *Datum:* ${datumStr}\n`;
         bericht += `📍 *START & EINDE:* Schoonmansveld 48, 2870 Puurs\n\n`;
@@ -415,6 +454,9 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         bericht += adressenVoorRoute.join('&q=');
         bericht += `&q=${encodeURIComponent('Schoonmansveld 48, 2870 Puurs')}`;
+        
+        // Sla de huidige datum op voor de WhatsApp verstuur functie
+        huidigeWhatsAppDatum = datum;
         
         if (whatsappBericht) whatsappBericht.value = bericht;
         whatsappPopup.style.display = 'flex';
@@ -522,14 +564,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (closePlanningPopup) closePlanningPopup.addEventListener('click', () => planningPopup.style.display = 'none');
     
-    // WhatsApp versturen
+    // WhatsApp versturen - gebruikt de chauffeur die bij de datum hoort
     if (sendWhatsAppBtn) {
         sendWhatsAppBtn.addEventListener('click', () => {
-            const telefoon = chauffeurSelect?.value;
+            // Haal de chauffeur voor de huidige WhatsApp datum
+            const chauffeurSelect = document.querySelector(`.datum-header[data-datum="${huidigeWhatsAppDatum}"] .chauffeur-select`);
+            const telefoon = chauffeurSelect ? chauffeurSelect.value : '';
             const bericht = whatsappBericht?.value;
             
             if (!telefoon) {
-                alert('Selecteer een chauffeur met een geldig telefoonnummer.');
+                alert('Selecteer eerst een chauffeur voor deze dag in de datum header.');
                 return;
             }
             
@@ -578,6 +622,5 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialiseer
     laadPlanningen();
-    laadChauffeurs();
     
 });
