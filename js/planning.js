@@ -121,12 +121,11 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
-    // ===== AI OPTIMALISATIE (Directe API Call - Tijdelijk voor testen) =====
+    // ===== AI OPTIMALISATIE (Directe API Call) =====
     async function optimaliseerMetAI(datum) {
         // Verzamel alle adressen voor deze datum
         const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
         const adressenList = [];
-        const planningIds = [];
         
         items.forEach(item => {
             const id = parseInt(item.dataset.id);
@@ -139,7 +138,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     postcode: planning.adres.postcode,
                     plaats: planning.adres.plaats
                 });
-                planningIds.push(planning.id);
             }
         });
         
@@ -170,11 +168,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 adresLijst += `${index + 1}. ${adres.instelling_naam}, ${adres.straat}, ${adres.postcode} ${adres.plaats}\n`;
             });
             
+            // Haal de API key uit localStorage (of gebruik de fallback)
+            const apiKey = localStorage.getItem('openrouter_key') || OPENROUTER_API_KEY || '';
+            if (!apiKey) {
+                throw new Error('Geen OpenRouter API key gevonden. Voeg deze toe via de console: localStorage.setItem("openrouter_key", "jouw-key")');
+            }
+            
             // Roep OpenRouter API direct aan
-            const response = await fetch(OPENROUTER_API_URL, {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                    'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://therealmookey.github.io',
                     'X-Title': 'Abbott Route Planner',
@@ -184,11 +188,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     messages: [
                         {
                             role: 'system',
-                            content: 'Je bent een route-optimalisatie expert. Optimaliseer de route voor een chauffeur die start en eindigt op Schoonmansveld 48, 2870 Puurs. Geef een JSON array met de IDs van de adressen in de beste volgorde. Bijvoorbeeld: [2, 1, 3]'
+                            content: 'Je bent een route-optimalisatie expert. Geef een JSON array met de IDs van de adressen in de beste volgorde. Bijvoorbeeld: [2, 1, 3]'
                         },
                         {
                             role: 'user',
-                            content: `Optimaliseer deze adressen voor een circulaire route:\n${adresLijst}`
+                            content: `Optimaliseer deze adressen voor een circulaire route (begin en einde op Schoonmansveld 48, 2870 Puurs):\n${adresLijst}`
                         }
                     ],
                     stream: false,
@@ -202,11 +206,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(result.error?.message || 'Er ging iets mis met de AI');
             }
             
-            if (result.error) {
-                throw new Error(result.error.message || 'AI fout');
-            }
-            
-            // Parse de AI response
             let nieuweVolgorde = [];
             try {
                 const content = result.choices[0].message.content;
