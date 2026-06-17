@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
-    // ===== AI OPTIMALISATIE VIA EDGE FUNCTION =====
+    // ===== AI OPTIMALISATIE (Directe API Call - Tijdelijk voor testen) =====
     async function optimaliseerMetAI(datum) {
         // Verzamel alle adressen voor deze datum
         const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
@@ -164,40 +164,58 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.disabled = true;
         
         try {
-            const { data: { session } } = await window.supabase.auth.getSession();
-            const token = session?.access_token;
+            // Bouw de prompt
+            let adresLijst = "";
+            adressenList.forEach((adres, index) => {
+                adresLijst += `${index + 1}. ${adres.instelling_naam}, ${adres.straat}, ${adres.postcode} ${adres.plaats}\n`;
+            });
             
-            if (!token) {
-                alert('Je bent niet ingelogd. Log opnieuw in.');
-                return;
-            }
-            
-            const response = await fetch(
-                'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/optimize',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        adressen: adressenList,
-                        datum: datum 
-                    })
-                }
-            );
+            // Roep OpenRouter API direct aan
+            const response = await fetch(OPENROUTER_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://therealmookey.github.io',
+                    'X-Title': 'Abbott Route Planner',
+                },
+                body: JSON.stringify({
+                    model: 'deepseek/deepseek-v4-flash:free',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Je bent een route-optimalisatie expert. Optimaliseer de route voor een chauffeur die start en eindigt op Schoonmansveld 48, 2870 Puurs. Geef een JSON array met de IDs van de adressen in de beste volgorde. Bijvoorbeeld: [2, 1, 3]'
+                        },
+                        {
+                            role: 'user',
+                            content: `Optimaliseer deze adressen voor een circulaire route:\n${adresLijst}`
+                        }
+                    ],
+                    stream: false,
+                    temperature: 0.3,
+                })
+            });
             
             const result = await response.json();
             
             if (!response.ok) {
-                throw new Error(result.error || 'Er ging iets mis');
+                throw new Error(result.error?.message || 'Er ging iets mis met de AI');
             }
             
-            if (!result.success) {
-                throw new Error(result.error || 'AI optimalisatie mislukt');
+            if (result.error) {
+                throw new Error(result.error.message || 'AI fout');
             }
             
-            const nieuweVolgorde = result.volgorde;
+            // Parse de AI response
+            let nieuweVolgorde = [];
+            try {
+                const content = result.choices[0].message.content;
+                nieuweVolgorde = JSON.parse(content);
+            } catch {
+                const content = result.choices[0].message.content;
+                const matches = content.match(/\d+/g);
+                if (matches) nieuweVolgorde = matches.map(Number);
+            }
             
             if (!nieuweVolgorde || nieuweVolgorde.length === 0) {
                 throw new Error('Geen geldige volgorde ontvangen van AI');
