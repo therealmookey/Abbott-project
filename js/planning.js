@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const response = await fetch(
-                'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/optimize-route',
+                'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/optimize',
                 {
                     method: 'POST',
                     headers: {
