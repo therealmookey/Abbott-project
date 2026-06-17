@@ -122,143 +122,166 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
-    async function optimaliseerMetAI(datum) {
-        // Verzamel alle adressen voor deze datum
-        const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
-        const adressenList = [];
-        
-        items.forEach(item => {
-            const id = parseInt(item.dataset.id);
-            const planning = allePlanningen.find(p => p.id === id);
-            if (planning && planning.adres) {
-                adressenList.push({
-                    id: planning.id,
-                    instelling_naam: planning.adres.instelling_naam,
-                    straat: planning.adres.straat,
-                    postcode: planning.adres.postcode,
-                    plaats: planning.adres.plaats
-                });
-            }
+// ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
+async function optimaliseerMetAI(datum) {
+    // Verzamel alle adressen voor deze datum
+    const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
+    const adressenList = [];
+    
+    items.forEach(item => {
+        const id = parseInt(item.dataset.id);
+        const planning = allePlanningen.find(p => p.id === id);
+        if (planning && planning.adres) {
+            adressenList.push({
+                id: planning.id,
+                instelling_naam: planning.adres.instelling_naam,
+                straat: planning.adres.straat,
+                postcode: planning.adres.postcode,
+                plaats: planning.adres.plaats
+            });
+        }
+    });
+    
+    if (adressenList.length === 0) {
+        alert('Geen adressen gevonden voor deze dag.');
+        return;
+    }
+    
+    if (adressenList.length < 2) {
+        alert('Er zijn minimaal 2 adressen nodig voor optimalisatie.');
+        return;
+    }
+    
+    // Toon loading state
+    const btn = document.querySelector(`.ai-optimize-btn[data-datum="${datum}"]`);
+    if (!btn) {
+        alert('AI knop niet gevonden.');
+        return;
+    }
+    const origText = btn.textContent;
+    btn.textContent = 'Bezig...';
+    btn.disabled = true;
+    
+    try {
+        // Bouw de prompt
+        let adresLijst = "";
+        adressenList.forEach((adres, index) => {
+            adresLijst += (index + 1) + ". " + adres.instelling_naam + ", " + adres.straat + ", " + adres.postcode + " " + adres.plaats + "\n";
         });
         
-        if (adressenList.length === 0) {
-            alert('Geen adressen gevonden voor deze dag.');
-            return;
+        // Haal de API key uit localStorage
+        const apiKey = localStorage.getItem('openrouter_key') || '';
+        if (!apiKey) {
+            throw new Error('Geen OpenRouter API key gevonden. Voeg deze toe via de console: localStorage.setItem("openrouter_key", "jouw-key")');
         }
         
-        if (adressenList.length < 2) {
-            alert('Er zijn minimaal 2 adressen nodig voor optimalisatie.');
-            return;
+        // Roep OpenRouter API direct aan met Gemma 4 (gratis)
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + apiKey,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://therealmookey.github.io',
+                'X-Title': 'Abbott Route Planner',
+            },
+            body: JSON.stringify({
+                model: 'google/gemma-4-31b-it:free',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Je bent een route-optimalisatie expert. Geef een JSON array met de IDs van de adressen in de beste volgorde. Bijvoorbeeld: [2, 1, 3]'
+                    },
+                    {
+                        role: 'user',
+                        content: 'Optimaliseer deze adressen voor een circulaire route (begin en einde op Schoonmansveld 48, 2870 Puurs):\n' + adresLijst
+                    }
+                ],
+                stream: false,
+                temperature: 0.3,
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error?.message || 'Er ging iets mis met de AI');
         }
         
-        // Toon loading state
-        const btn = document.querySelector(`.ai-optimize-btn[data-datum="${datum}"]`);
-        if (!btn) {
-            alert('AI knop niet gevonden.');
-            return;
-        }
-        const origText = btn.textContent;
-        btn.textContent = '⏳ Bezig...';
-        btn.disabled = true;
+        // Debug: Log de volledige AI response
+        console.log('AI response:', JSON.stringify(result, null, 2));
         
+        let nieuweVolgorde = [];
         try {
-            // Bouw de prompt
-            let adresLijst = "";
-            adressenList.forEach((adres, index) => {
-                adresLijst += `${index + 1}. ${adres.instelling_naam}, ${adres.straat}, ${adres.postcode} ${adres.plaats}\n`;
-            });
-            
-            // Haal de API key uit localStorage
-            const apiKey = localStorage.getItem('openrouter_key') || '';
-            if (!apiKey) {
-                throw new Error('Geen OpenRouter API key gevonden. Voeg deze toe via de console: localStorage.setItem("openrouter_key", "jouw-key")');
+            const content = result.choices[0].message.content;
+            console.log('AI content:', content);
+            nieuweVolgorde = JSON.parse(content);
+            console.log('Geparste volgorde:', nieuweVolgorde);
+        } catch (parseError) {
+            console.log('JSON parse error, probeer regex fallback');
+            const content = result.choices[0].message.content;
+            const matches = content.match(/\d+/g);
+            if (matches) {
+                nieuweVolgorde = matches.map(Number);
+                console.log('Regex gevonden IDs:', nieuweVolgorde);
             }
-            
-            // Roep OpenRouter API direct aan met Gemma 4 (gratis)
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': 'https://therealmookey.github.io',
-                    'X-Title': 'Abbott Route Planner',
-                },
-                body: JSON.stringify({
-                    model: 'google/gemma-4-31b-it:free',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'Je bent een route-optimalisatie expert. Geef een JSON array met de IDs van de adressen in de beste volgorde. Bijvoorbeeld: [2, 1, 3]'
-                        },
-                        {
-                            role: 'user',
-                            content: `Optimaliseer deze adressen voor een circulaire route (begin en einde op Schoonmansveld 48, 2870 Puurs):\n${adresLijst}`
-                        }
-                    ],
-                    stream: false,
-                    temperature: 0.3,
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result.error?.message || 'Er ging iets mis met de AI');
-            }
-            
-            let nieuweVolgorde = [];
-            try {
-                const content = result.choices[0].message.content;
-                nieuweVolgorde = JSON.parse(content);
-            } catch {
-                const content = result.choices[0].message.content;
-                const matches = content.match(/\d+/g);
-                if (matches) nieuweVolgorde = matches.map(Number);
-            }
-            
-            if (!nieuweVolgorde || nieuweVolgorde.length === 0) {
-                throw new Error('Geen geldige volgorde ontvangen van AI');
-            }
-            
-            // Sla de nieuwe volgorde op
-            for (let i = 0; i < nieuweVolgorde.length; i++) {
-                const planningId = nieuweVolgorde[i];
-                const volgorde = i + 1;
-                
-                const { error } = await window.supabase
-                    .from('planningen')
-                    .update({ dag_volgorde: volgorde })
-                    .eq('id', planningId);
-                
-                if (error) throw error;
-            }
-            
-            alert(`✅ Route geoptimaliseerd! De volgorde is aangepast op basis van AI-advies.`);
-            
-            // ===== FORCEER EEN VISUELE UPDATE =====
-            // Herlaad de planning en zorg dat de verandering zichtbaar wordt
-            await laadPlanningen();
-            
-            // Scroll naar de datum header
-            const datumHeader = document.querySelector(`.datum-header[data-datum="${datum}"]`);
-            if (datumHeader) {
-                datumHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Markeer de datum header even om de verandering te benadrukken
-                datumHeader.style.transition = 'background-color 0.5s';
-                datumHeader.style.backgroundColor = '#d4edda';
-                setTimeout(() => {
-                    datumHeader.style.backgroundColor = '';
-                }, 2000);
-            }
-            
-        } catch (err) {
-            console.error('AI optimalisatie fout:', err);
-            alert(`❌ Fout bij AI optimalisatie: ${err.message}`);
-        } finally {
+        }
+        
+        if (!nieuweVolgorde || nieuweVolgorde.length === 0) {
+            throw new Error('Geen geldige volgorde ontvangen van AI');
+        }
+        
+        // Debug: Log de huidige volgorde
+        const huidigeVolgorde = adressenList.map(function(a) { return a.id; });
+        console.log('Huidige volgorde:', huidigeVolgorde);
+        console.log('Nieuwe volgorde:', nieuweVolgorde);
+        
+        // Controleer of de volgorde daadwerkelijk verandert
+        var isGelijk = JSON.stringify(huidigeVolgorde) === JSON.stringify(nieuweVolgorde);
+        if (isGelijk) {
+            console.log('Volgorde is hetzelfde, AI denkt dat dit al optimaal is.');
+            alert('De AI heeft geen betere volgorde gevonden. De huidige volgorde is al optimaal.');
             btn.textContent = origText;
             btn.disabled = false;
+            return;
         }
+        
+        // Sla de nieuwe volgorde op
+        for (var i = 0; i < nieuweVolgorde.length; i++) {
+            var planningId = nieuweVolgorde[i];
+            var volgorde = i + 1;
+            
+            var updateResult = await window.supabase
+                .from('planningen')
+                .update({ dag_volgorde: volgorde })
+                .eq('id', planningId);
+            
+            if (updateResult.error) throw updateResult.error;
+        }
+        
+        alert('Route geoptimaliseerd! De volgorde is aangepast op basis van AI-advies.');
+        
+        // Herlaad de planning
+        await laadPlanningen();
+        
+        // Scroll naar de datum header
+        var datumHeader = document.querySelector('.datum-header[data-datum="' + datum + '"]');
+        if (datumHeader) {
+            datumHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            datumHeader.style.transition = 'background-color 0.5s';
+            datumHeader.style.backgroundColor = '#d4edda';
+            setTimeout(function() {
+                datumHeader.style.backgroundColor = '';
+            }, 2000);
+        }
+        
+    } catch (err) {
+        console.error('AI optimalisatie fout:', err);
+        alert('Fout bij AI optimalisatie: ' + err.message);
+    } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
     }
+}
     
     // Laad alle planningen, gesorteerd op datum
     async function laadPlanningen() {
