@@ -849,83 +849,102 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Genereer WhatsApp bericht voor een specifieke datum
-    function genereerWhatsAppVoorDatum(datum) {
-        const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
-        if (items.length === 0) {
-            alert('Geen ritten voor deze datum.');
-            return;
-        }
-        
-        // Haal de geselecteerde chauffeur voor deze datum
-        const chauffeurSelect = document.querySelector(`.datum-header[data-datum="${datum}"] .chauffeur-select`);
-        const chauffeurTel = chauffeurSelect ? chauffeurSelect.value : '';
-        
-        if (!chauffeurTel) {
-            alert('Selecteer eerst een chauffeur voor deze dag via de dropdown bij de datum header.');
-            return;
-        }
-        
-        // Verzamel de planning data voor deze datum
-        const planningData = [];
-        items.forEach(item => {
-            const id = parseInt(item.dataset.id);
-            const planning = allePlanningen.find(p => p.id === id);
-            if (planning) {
-                planningData.push(planning);
-            }
-        });
-        
-        // Genereer WhatsApp bericht
-        const datumObj = new Date(datum + 'T00:00:00');
-        const datumStr = datumObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        let bericht = `🚚 *ABBOTT ROUTE PLANNING* 🚚\n\n`;
-        bericht += `📅 *Datum:* ${datumStr}\n`;
-        bericht += `📍 *START & EINDE:* Schoonmansveld 48, 2870 Puurs\n\n`;
-        bericht += `*📋 CIRCULAIRE ROUTE (${planningData.length} stops)*\n`;
-        bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-        
-        planningData.forEach((planning, index) => {
-            bericht += `${index + 1}. *${planning.adres?.instelling_naam || 'Onbekend'}*\n`;
-            bericht += `   📍 ${planning.adres?.straat || ''}\n`;
-            bericht += `   📮 ${planning.adres?.postcode || ''} ${planning.adres?.plaats || ''}\n`;
-            if (planning.type === 'ophaling') {
-                bericht += `   📦 OPHALING: ${planning.aantal_tonnen || 1} volle ton(nen)\n`;
-            } else if (planning.type === 'plaatsing') {
-                bericht += `   🚚 PLAATSING: ${planning.aantal_lege_tonnen || 1} lege ton(nen)\n`;
-            }
-            if (planning.adres?.telefoon) {
-                bericht += `   📞 Contact: ${planning.adres.telefoon}\n`;
-            }
-            if (planning.adres?.extra_info) {
-                bericht += `   📝 *EXTRA INFO:* ${planning.adres.extra_info}\n`;
-            }
-            if (planning.opmerkingen) {
-                bericht += `   📋 *OPMERKINGEN:* ${planning.opmerkingen}\n`;
-            }
-            bericht += `\n`;
-        });
-        
-        bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-        bericht += `${planningData.length + 1}. *TERUGKEER NAAR BASIS*\n`;
-        bericht += `   📍 Schoonmansveld 48, 2870 Puurs\n`;
-        bericht += `   🏁 EINDE RIT\n\n`;
-        
-        bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-        bericht += `🗺️ Open in Waze:\n`;
-        bericht += `https://www.waze.com/ul?ll=51.0589,4.2863&navigate=yes&q=`;
-        
-        const adressenVoorRoute = planningData.map(p => 
-            encodeURIComponent(`${p.adres?.straat || ''}, ${p.adres?.postcode || ''} ${p.adres?.plaats || ''}`)
-        );
-        bericht += adressenVoorRoute.join('&q=');
-        bericht += `&q=${encodeURIComponent('Schoonmansveld 48, 2870 Puurs')}`;
-        
-        huidigeWhatsAppDatum = datum;
-        
-        if (whatsappBericht) whatsappBericht.value = bericht;
-        whatsappPopup.style.display = 'flex';
+    // Genereer WhatsApp bericht voor een specifieke datum (alleen Google Maps)
+function genereerWhatsAppVoorDatum(datum) {
+    const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
+    if (items.length === 0) {
+        alert('Geen ritten voor deze datum.');
+        return;
     }
+    
+    // Haal de geselecteerde chauffeur voor deze datum
+    const chauffeurSelect = document.querySelector(`.datum-header[data-datum="${datum}"] .chauffeur-select`);
+    const chauffeurTel = chauffeurSelect ? chauffeurSelect.value : '';
+    
+    if (!chauffeurTel) {
+        alert('Selecteer eerst een chauffeur voor deze dag via de dropdown bij de datum header.');
+        return;
+    }
+    
+    // Verzamel de planning data voor deze datum
+    const planningData = [];
+    items.forEach(item => {
+        const id = parseInt(item.dataset.id);
+        const planning = allePlanningen.find(p => p.id === id);
+        if (planning) {
+            planningData.push(planning);
+        }
+    });
+    
+    // Genereer WhatsApp bericht
+    const datumObj = new Date(datum + 'T00:00:00');
+    const datumStr = datumObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    let bericht = `🚚 *ABBOTT ROUTE PLANNING* 🚚\n\n`;
+    bericht += `📅 *Datum:* ${datumStr}\n`;
+    bericht += `📍 *START & EINDE:* Schoonmansveld 48, 2870 Puurs\n\n`;
+    bericht += `*📋 CIRCULAIRE ROUTE (${planningData.length} stops)*\n`;
+    bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    
+    // Bouw de adreslijst voor de route links
+    const adressenVoorRoute = [];
+    
+    planningData.forEach((planning, index) => {
+        const stopNumber = planning.dag_volgorde || (index + 1);
+        const adresString = `${planning.adres?.straat || ''}, ${planning.adres?.postcode || ''} ${planning.adres?.plaats || ''}`;
+        adressenVoorRoute.push(adresString);
+        
+        bericht += `${stopNumber}. *${planning.adres?.instelling_naam || 'Onbekend'}*\n`;
+        bericht += `   📍 ${planning.adres?.straat || ''}\n`;
+        bericht += `   📮 ${planning.adres?.postcode || ''} ${planning.adres?.plaats || ''}\n`;
+        if (planning.type === 'ophaling') {
+            bericht += `   📦 OPHALING: ${planning.aantal_tonnen || 1} volle ton(nen)\n`;
+        } else if (planning.type === 'plaatsing') {
+            bericht += `   🚚 PLAATSING: ${planning.aantal_lege_tonnen || 1} lege ton(nen)\n`;
+        }
+        if (planning.adres?.telefoon) {
+            bericht += `   📞 Contact: ${planning.adres.telefoon}\n`;
+        }
+        if (planning.adres?.extra_info) {
+            bericht += `   📝 *EXTRA INFO:* ${planning.adres.extra_info}\n`;
+        }
+        if (planning.opmerkingen) {
+            bericht += `   📋 *OPMERKINGEN:* ${planning.opmerkingen}\n`;
+        }
+        bericht += `\n`;
+    });
+    
+    // Na de laatste stop: terug naar basis
+    bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    bericht += `${planningData.length + 1}. *TERUGKEER NAAR BASIS*\n`;
+    bericht += `   📍 Schoonmansveld 48, 2870 Puurs\n`;
+    bericht += `   🏁 EINDE RIT\n\n`;
+    
+    bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    
+    // ===== GOOGLE MAPS LINK (met alle stops in de route) =====
+    // Google Maps opent in de Maps app op de telefoon
+    bericht += `🗺️ *OPEN IN GOOGLE MAPS:*\n`;
+    let googleMapsUrl = `https://www.google.com/maps/dir/Schoonmansveld+48,+2870+Puurs/`;
+    
+    // Voeg alle stops toe
+    adressenVoorRoute.forEach(adres => {
+        googleMapsUrl += encodeURIComponent(adres) + '/';
+    });
+    
+    // Voeg het eindpunt toe (terug naar basis)
+    googleMapsUrl += encodeURIComponent('Schoonmansveld 48, 2870 Puurs');
+    
+    bericht += googleMapsUrl + '\n\n';
+    
+    // Korte instructie voor de chauffeur
+    bericht += `📌 *Instructie:* Klik op de link om de route te openen in Google Maps.\n`;
+    bericht += `De route toont alle stops in de juiste volgorde.`;
+    
+    huidigeWhatsAppDatum = datum;
+    
+    if (whatsappBericht) whatsappBericht.value = bericht;
+    whatsappPopup.style.display = 'flex';
+}
     
     // Update status
     async function updateStatus(id, nieuweStatus) {
