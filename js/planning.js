@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return localStorage.getItem(key) || '';
     }
     
-   // ===== AI OPTIMALISATIE (Directe API Call met Gemma) =====
+  // ===== AI OPTIMALISATIE (via Edge Function) =====
 async function optimaliseerMetAI(datum) {
     // Verzamel alle adressen voor deze datum
     const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
@@ -162,128 +162,79 @@ async function optimaliseerMetAI(datum) {
     btn.disabled = true;
     
     try {
-        // Bouw de prompt met de echte database IDs
-        let adresLijst = "";
-        adressenList.forEach(function(adres, index) {
-            adresLijst += "ID: " + adres.id + ", " + adres.instelling_naam + ", " + adres.straat + ", " + adres.postcode + " " + adres.plaats + "\n";
-        });
+        // Haal de Supabase session token op
+        const { data: { session }, error: sessionError } = await window.supabase.auth.getSession();
         
-        // Haal de API key uit localStorage
-        const apiKey = localStorage.getItem('openrouter_key') || '';
-        if (!apiKey) {
-            throw new Error('Geen OpenRouter API key gevonden. Voeg deze toe via de console: localStorage.setItem("openrouter_key", "jouw-key")');
+        if (sessionError) {
+            console.error('Session error:', sessionError);
+            throw new Error('Kon sessie niet ophalen: ' + sessionError.message);
         }
         
-        // Roep OpenRouter API direct aan met Gemma 4 (gratis)
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + apiKey,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://therealmookey.github.io',
-                'X-Title': 'Abbott Route Planner',
-            },
-            body: JSON.stringify({
-                model: 'google/gemma-4-31b-it:free',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'Je bent een route-optimalisatie expert. Geef alleen een JSON array met de IDs van de adressen in de beste volgorde. Gebruik alleen de IDs die in de lijst staan. Gebruik getallen, geen strings. Geen extra tekst, geen markdown, geen uitleg. Alleen de JSON array met getallen.'
-                    },
-                    {
-                        role: 'user',
-                        content: 'Optimaliseer de volgorde van deze adressen voor een circulaire route. De chauffeur start en eindigt op Schoonmansveld 48, 2870 Puurs (dit is geen adres in de lijst). Geef alleen de IDs in de beste volgorde als getallen:\n' + adresLijst
-                    }
-                ],
-                stream: false,
-                temperature: 0.3,
-            })
-        });
+        const token = session?.access_token;
+        
+        if (!token) {
+            console.log('Geen token gevonden, probeer refresh...');
+            // Probeer de gebruiker opnieuw te authenticeren
+            const { data: { user } } = await window.supabase.auth.getUser();
+            if (!user) {
+                throw new Error('Je bent niet ingelogd. Log opnieuw in.');
+            }
+            // Haal een verse sessie op
+            const { data: refreshData } = await window.supabase.auth.refreshSession();
+            const refreshToken = refreshData?.session?.access_token;
+            if (!refreshToken) {
+                throw new Error('Kon geen geldige sessie verkrijgen. Log opnieuw in.');
+            }
+            var finalToken = refreshToken;
+        } else {
+            var finalToken = token;
+        }
+        
+        console.log('Token aanwezig:', finalToken ? 'Ja' : 'Nee');
+        
+        // Roep de Edge Function aan
+        const response = await fetch(
+            'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/optimize',
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + finalToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    adressen: adressenList,
+                    datum: datum 
+                })
+            }
+        );
         
         const result = await response.json();
         
+        console.log('Response status:', response.status);
+        console.log('Response result:', result);
+        
         if (!response.ok) {
-            throw new Error(result.error?.message || 'Er ging iets mis met de AI');
+            throw new Error(result.error || 'Er ging iets mis met de AI');
         }
         
-        console.log('AI response:', JSON.stringify(result, null, 2));
-        
-        let nieuweVolgorde = [];
-        try {
-            let content = result.choices[0].message.content;
-            console.log('AI content (raw):', content);
-            
-            // Verwijder markdown code blocks
-            content = content.replace(/```json\s*/g, '');
-            content = content.replace(/```\s*/g, '');
-            content = content.trim();
-            
-            console.log('AI content (cleaned):', content);
-            nieuweVolgorde = JSON.parse(content);
-            console.log('Geparste volgorde:', nieuweVolgorde);
-        } catch (parseError) {
-            console.log('JSON parse error, probeer regex fallback');
-            const content = result.choices[0].message.content;
-            const match = content.match(/\[\s*(\d+\s*,\s*)*\d+\s*\]/);
-            if (match) {
-                try {
-                    nieuweVolgorde = JSON.parse(match[0]);
-                    console.log('Regex gevonden array:', nieuweVolgorde);
-                } catch(e) {
-                    const numbers = content.match(/\d+/g);
-                    if (numbers) {
-                        nieuweVolgorde = numbers.map(Number);
-                        console.log('Regex gevonden IDs:', nieuweVolgorde);
-                    }
-                }
-            } else {
-                const numbers = content.match(/\d+/g);
-                if (numbers) {
-                    nieuweVolgorde = numbers.map(Number);
-                    console.log('Regex gevonden IDs:', nieuweVolgorde);
-                }
-            }
+        if (!result.success) {
+            throw new Error(result.error || 'AI optimalisatie mislukt');
         }
+        
+        let nieuweVolgorde = result.volgorde;
         
         if (!nieuweVolgorde || nieuweVolgorde.length === 0) {
             throw new Error('Geen geldige volgorde ontvangen van AI');
         }
         
-        // ===== CONVERTEER ALLES NAAR GETALLEN =====
-        var geldigeIds = adressenList.map(function(a) { return a.id; });
-        console.log('Geldige IDs (numbers):', geldigeIds);
-        
-        // Converteer nieuweVolgorde naar numbers
-        var nieuweVolgordeNumbers = nieuweVolgorde.map(function(id) {
-            return typeof id === 'string' ? parseInt(id) : id;
-        });
-        console.log('Nieuwe volgorde (numbers):', nieuweVolgordeNumbers);
-        
-        // Filter: alleen IDs die in de planning zitten
-        var gefilterdeVolgorde = nieuweVolgordeNumbers.filter(function(id) {
-            return geldigeIds.indexOf(id) !== -1;
-        });
-        console.log('Gefilterde volgorde:', gefilterdeVolgorde);
-        
-        // Als er IDs ontbreken, voeg ze toe aan het einde
-        var ontbrekendeIds = geldigeIds.filter(function(id) {
-            return gefilterdeVolgorde.indexOf(id) === -1;
-        });
-        console.log('Ontbrekende IDs:', ontbrekendeIds);
-        
-        // Voeg ontbrekende IDs toe aan het einde
-        var uiteindelijkeVolgorde = gefilterdeVolgorde.concat(ontbrekendeIds);
-        console.log('Uiteindelijke volgorde:', uiteindelijkeVolgorde);
-        
-        // Debug: Log de huidige volgorde
+        // Debug logs
         var huidigeVolgorde = adressenList.map(function(a) { return a.id; });
         console.log('Huidige volgorde:', huidigeVolgorde);
-        console.log('Nieuwe volgorde:', uiteindelijkeVolgorde);
+        console.log('Nieuwe volgorde:', nieuweVolgorde);
         
-        // Controleer of de volgorde daadwerkelijk verandert
-        var isGelijk = JSON.stringify(huidigeVolgorde) === JSON.stringify(uiteindelijkeVolgorde);
+        // Controleer of de volgorde verandert
+        var isGelijk = JSON.stringify(huidigeVolgorde) === JSON.stringify(nieuweVolgorde);
         if (isGelijk) {
-            console.log('Volgorde is hetzelfde, AI denkt dat dit al optimaal is.');
             alert('De AI heeft geen betere volgorde gevonden. De huidige volgorde is al optimaal.');
             btn.textContent = origText;
             btn.disabled = false;
@@ -291,8 +242,8 @@ async function optimaliseerMetAI(datum) {
         }
         
         // Sla de nieuwe volgorde op
-        for (var i = 0; i < uiteindelijkeVolgorde.length; i++) {
-            var planningId = uiteindelijkeVolgorde[i];
+        for (var i = 0; i < nieuweVolgorde.length; i++) {
+            var planningId = nieuweVolgorde[i];
             var volgorde = i + 1;
             
             var updateResult = await window.supabase
