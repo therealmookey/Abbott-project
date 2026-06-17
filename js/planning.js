@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Genereer WhatsApp bericht voor een specifieke datum (alleen Google Maps)
+    // Genereer WhatsApp bericht voor een specifieke datum (alleen Google Maps - cross-platform)
 function genereerWhatsAppVoorDatum(datum) {
     const items = document.querySelectorAll(`.planning-item[data-datum="${datum}"]`);
     if (items.length === 0) {
@@ -921,22 +921,32 @@ function genereerWhatsAppVoorDatum(datum) {
     
     bericht += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     
-    // ===== GOOGLE MAPS LINK (met alle stops in de route) =====
-    // Google Maps opent in de Maps app op de telefoon
+    // ===== GOOGLE MAPS LINK (Cross-platform met api=1) =====
     bericht += `🗺️ *OPEN IN GOOGLE MAPS:*\n`;
-    let googleMapsUrl = `https://www.google.com/maps/dir/Schoonmansveld+48,+2870+Puurs/`;
     
-    // Voeg alle stops toe
-    adressenVoorRoute.forEach(adres => {
-        googleMapsUrl += encodeURIComponent(adres) + '/';
-    });
-    
-    // Voeg het eindpunt toe (terug naar basis)
+    let googleMapsUrl = 'https://www.google.com/maps/dir/?api=1&origin=';
     googleMapsUrl += encodeURIComponent('Schoonmansveld 48, 2870 Puurs');
+    
+    if (adressenVoorRoute.length === 0) {
+        // Geen stops: alleen start en einde
+        googleMapsUrl += '&destination=' + encodeURIComponent('Schoonmansveld 48, 2870 Puurs');
+    } else if (adressenVoorRoute.length === 1) {
+        // Eén stop
+        googleMapsUrl += '&destination=' + encodeURIComponent(adressenVoorRoute[0]);
+        googleMapsUrl += '&waypoints=' + encodeURIComponent('Schoonmansveld 48, 2870 Puurs');
+    } else {
+        // Meerdere stops: gebruik waypoints
+        const laatsteAdres = adressenVoorRoute[adressenVoorRoute.length - 1];
+        googleMapsUrl += '&destination=' + encodeURIComponent(laatsteAdres);
+        
+        const waypoints = adressenVoorRoute.slice(0, -1);
+        googleMapsUrl += '&waypoints=' + waypoints.map(w => encodeURIComponent(w)).join('%7C');
+    }
+    
+    googleMapsUrl += '&travelmode=driving';
     
     bericht += googleMapsUrl + '\n\n';
     
-    // Korte instructie voor de chauffeur
     bericht += `📌 *Instructie:* Klik op de link om de route te openen in Google Maps.\n`;
     bericht += `De route toont alle stops in de juiste volgorde.`;
     
