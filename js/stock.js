@@ -232,8 +232,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td style="padding: 10px;"><span class="stock-status ${statusClass}">${statusText}</span></td>
                         <td style="padding: 10px; text-align: center;">
                             ${isCombinatie ? `
-                                <button class="btn btn-warning edit-combinatie-btn" data-id="${item.id}" style="margin-right: 5px;">✏️ Bewerk combinatie</button>
-                                <button class="btn btn-info comp-btn" data-id="${item.id}" style="margin-right: 5px;">🔗 Bekijk componenten</button>
+                                <button class="btn btn-warning edit-combinatie-btn" data-id="${item.id}" style="margin-right: 5px;">✏️</button>
+                                <button class="btn btn-info comp-btn" data-id="${item.id}" style="margin-right: 5px;">🔗</button>
                             ` : `
                                 <button class="btn btn-secondary edit-btn" data-id="${item.id}" style="margin-right: 5px;">✏️</button>
                             `}
