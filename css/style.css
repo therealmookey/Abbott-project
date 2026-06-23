@@ -1751,3 +1751,30 @@ hr {
         max-width: 100%;
     }
 }
+/* ===== OPSTART POPUP ===== */
+.opstart-popup {
+    max-width: 450px;
+}
+
+.opstart-popup p {
+    margin: 0.5rem 0;
+    font-size: 0.95rem;
+}
+
+.opstart-popup .form-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+}
+
+/* ===== OPSTART KNO ===== */
+.btn-opstart {
+    background-color: #17a2b8;
+    color: white;
+}
+.btn-opstart:hover {
+    background-color: #138496;
+}

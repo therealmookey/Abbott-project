@@ -46,9 +46,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const mutatieCorrectieAantal = document.getElementById('mutatieCorrectieAantal');
     const mutatieReden = document.getElementById('mutatieReden');
     
+    // Opstart popup
+    const opstartPopup = document.getElementById('opstartPopup');
+    const closeOpstartPopup = document.getElementById('closeOpstartPopup');
+    const bevestigOpstartBtn = document.getElementById('bevestigOpstartBtn');
+    const opstartCombinatieNaam = document.getElementById('opstartCombinatieNaam');
+    const opstartAdresSelect = document.getElementById('opstartAdresSelect');
+    const opstartDatum = document.getElementById('opstartDatum');
+    const opstartDisplay = document.getElementById('opstartDisplay');
+    const opstartAantal = document.getElementById('opstartAantal');
+    
     let currentItemId = null;
     let currentCombinatieId = null;
     let currentMutatieItemId = null;
+    let currentOpstartCombinatieId = null;
     let alleItems = [];
     let componentenLijstData = [];
     let combinatieComponenten = [];
@@ -57,8 +68,17 @@ document.addEventListener('DOMContentLoaded', function() {
     function showAlerts(items) {
         if (!stockAlerts) return;
         
-        const lowItems = items.filter(item => item.aantal <= item.minimum_stock && item.aantal > 0);
-        const outItems = items.filter(item => item.aantal === 0);
+        // Combinatie items hebben geen minimum voorraad waarschuwing
+        const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
+        const lowItems = items.filter(item => 
+            item.aantal <= item.minimum_stock && 
+            item.aantal > 0 && 
+            !combinatieIds.includes(item.id)
+        );
+        const outItems = items.filter(item => 
+            item.aantal === 0 && 
+            !combinatieIds.includes(item.id)
+        );
         
         let alertsHtml = '';
         
@@ -133,11 +153,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const status = statusFilter?.value;
             if (status === 'laag') {
-                filteredData = filteredData.filter(item => item.aantal <= item.minimum_stock && item.aantal > 0);
+                const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
+                filteredData = filteredData.filter(item => 
+                    item.aantal <= item.minimum_stock && 
+                    item.aantal > 0 && 
+                    !combinatieIds.includes(item.id)
+                );
             } else if (status === 'op') {
-                filteredData = filteredData.filter(item => item.aantal === 0);
+                const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
+                filteredData = filteredData.filter(item => 
+                    item.aantal === 0 && 
+                    !combinatieIds.includes(item.id)
+                );
             } else if (status === 'voorraad') {
-                filteredData = filteredData.filter(item => item.aantal > item.minimum_stock);
+                const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
+                filteredData = filteredData.filter(item => 
+                    item.aantal > item.minimum_stock && 
+                    !combinatieIds.includes(item.id)
+                );
             }
             
             showAlerts(alleItems);
@@ -172,7 +205,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 let statusClass = 'status-voldoende';
                 let statusText = '✅ Voldoende';
                 
-                if (item.aantal === 0) {
+                if (isCombinatie) {
+                    statusClass = 'status-combinatie';
+                    statusText = '🔗 Combinatie';
+                } else if (item.aantal === 0) {
                     statusClass = 'status-op';
                     statusText = '🚨 Op voorraad!';
                 } else if (item.aantal <= item.minimum_stock) {
@@ -205,11 +241,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         </td>
                         <td style="padding: 10px;">${typeLabel}</td>
                         <td style="padding: 10px; text-align: right;"><strong>${item.aantal}</strong></td>
-                        <td style="padding: 10px; text-align: right;">${item.minimum_stock}</td>
+                        <td style="padding: 10px; text-align: right;">${isCombinatie ? '-' : item.minimum_stock}</td>
                         <td style="padding: 10px;"><span class="stock-status ${statusClass}">${statusText}</span></td>
                         <td style="padding: 10px; text-align: center;">
+                            ${isCombinatie ? `
+                                <button class="btn btn-success opstart-btn" data-id="${item.id}" style="margin-right: 5px;">🔄 Opstart</button>
+                                <button class="btn btn-info comp-btn" data-id="${item.id}" style="margin-right: 5px;">🔗</button>
+                            ` : ''}
                             <button class="btn btn-secondary mutatie-btn" data-id="${item.id}" style="margin-right: 5px;">📦</button>
-                            ${isCombinatie ? `<button class="btn btn-info comp-btn" data-id="${item.id}" style="margin-right: 5px;">🔗</button>` : ''}
                             <button class="btn btn-secondary edit-btn" data-id="${item.id}" style="margin-right: 5px;">✏️</button>
                             <button class="btn btn-danger delete-btn" data-id="${item.id}">🗑️</button>
                         </td>
@@ -240,6 +279,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             document.querySelectorAll('.comp-btn').forEach(btn => {
                 btn.addEventListener('click', () => toonCombinatieDetails(btn.dataset.id));
+            });
+            document.querySelectorAll('.opstart-btn').forEach(btn => {
+                btn.addEventListener('click', () => openOpstartPopup(btn.dataset.id));
             });
             
         } catch (err) {
@@ -366,23 +408,19 @@ document.addEventListener('DOMContentLoaded', function() {
             combinatiePopupTitle.textContent = 'Nieuwe combinatie';
             document.getElementById('combinatieCode').value = '';
             document.getElementById('combinatieOmschrijving').value = '';
-            document.getElementById('combinatieMinimum').value = '5';
             document.getElementById('combinatieLocatie').value = '';
             componentenLijstData = [];
             toonComponentenLijst();
             
-            // Laad items voor component dropdown
             await laadComponenten();
             combinatiePopup.style.display = 'flex';
         });
     }
     
-    // Aparte functie voor laden componenten dropdown
     async function laadComponenten() {
         if (!componentSelect) return;
         
         try {
-            // Haal alle items op die nog geen combinatie zijn
             const { data, error } = await window.supabase
                 .from('stock_items')
                 .select('id, item_code, omschrijving')
@@ -390,7 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (error) throw error;
             
-            // Filter items die al een combinatie zijn
             const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
             const beschikbareItems = data.filter(item => !combinatieIds.includes(item.id));
             
@@ -468,7 +505,6 @@ document.addEventListener('DOMContentLoaded', function() {
         saveCombinatieBtn.addEventListener('click', async () => {
             const code = document.getElementById('combinatieCode').value.trim();
             const omschrijving = document.getElementById('combinatieOmschrijving').value.trim();
-            const minimum = parseInt(document.getElementById('combinatieMinimum').value) || 5;
             const locatie = document.getElementById('combinatieLocatie').value.trim();
             
             if (!code || !omschrijving) {
@@ -482,14 +518,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             try {
-                // Maak het combinatie item aan
                 const { data: itemData, error: itemError } = await window.supabase
                     .from('stock_items')
                     .insert([{
                         item_code: code,
                         omschrijving: omschrijving,
                         aantal: 0,
-                        minimum_stock: minimum,
+                        minimum_stock: 0,
                         locatie: locatie || null
                     }])
                     .select();
@@ -498,7 +533,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const combinatieId = itemData[0].id;
                 
-                // Voeg componenten toe
                 const compData = componentenLijstData.map(comp => ({
                     combinatie_id: combinatieId,
                     component_id: comp.id,
@@ -527,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // ===== MUTATIE FUNCTIES (aangepast voor combinaties) =====
+    // ===== MUTATIE FUNCTIES =====
     
     async function openMutatiePopup(itemId) {
         try {
@@ -609,7 +643,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             try {
-                // Update item
                 const { error: updateError } = await window.supabase
                     .from('stock_items')
                     .update({ aantal: newAantal })
@@ -617,7 +650,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (updateError) throw updateError;
                 
-                // Log mutatie
                 const { error: logError } = await window.supabase
                     .from('stock_mutaties')
                     .insert([{
@@ -629,35 +661,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }]);
                 
                 if (logError) throw logError;
-                
-                // ===== ALS HET EEN COMBINATIE IS, UPDATE OOK DE COMPONENTEN =====
-                if (type === 'afname') {
-                    const comps = await window.supabase
-                        .from('combinatie_componenten')
-                        .select('*')
-                        .eq('combinatie_id', currentMutatieItemId);
-                    
-                    if (comps.data && comps.data.length > 0) {
-                        for (const comp of comps.data) {
-                            const { data: compItem } = await window.supabase
-                                .from('stock_items')
-                                .select('aantal')
-                                .eq('id', comp.component_id)
-                                .single();
-                            
-                            if (compItem) {
-                                const nieuwCompAantal = compItem.aantal - (comp.aantal * delta);
-                                if (nieuwCompAantal < 0) {
-                                    alert(`Waarschuwing: ${compItem.omschrijving} heeft niet genoeg voorraad!`);
-                                }
-                                await window.supabase
-                                    .from('stock_items')
-                                    .update({ aantal: Math.max(0, nieuwCompAantal) })
-                                    .eq('id', comp.component_id);
-                            }
-                        }
-                    }
-                }
                 
                 alert('Voorraad bijgewerkt!');
                 mutatiePopup.style.display = 'none';
@@ -672,6 +675,155 @@ document.addEventListener('DOMContentLoaded', function() {
     if (closeMutatiePopup) {
         closeMutatiePopup.addEventListener('click', () => {
             mutatiePopup.style.display = 'none';
+        });
+    }
+    
+    // ===== OPSTART FUNCTIES =====
+    
+    async function laadOpstartAdressen() {
+        if (!opstartAdresSelect) return;
+        
+        const { data, error } = await window.supabase
+            .from('adressen')
+            .select('id, instelling_naam, straat, postcode, plaats')
+            .order('instelling_naam');
+        
+        if (error) {
+            console.error('Fout bij laden adressen:', error);
+            return;
+        }
+        
+        opstartAdresSelect.innerHTML = '<option value="">Kies een ziekenhuis...</option>';
+        data.forEach(adres => {
+            const option = document.createElement('option');
+            option.value = adres.id;
+            option.textContent = `${adres.instelling_naam} - ${adres.straat}, ${adres.plaats}`;
+            opstartAdresSelect.appendChild(option);
+        });
+    }
+    
+    async function openOpstartPopup(combinatieId) {
+        try {
+            const { data: combinatie, error } = await window.supabase
+                .from('stock_items')
+                .select('*')
+                .eq('id', combinatieId)
+                .single();
+            
+            if (error) throw error;
+            
+            currentOpstartCombinatieId = combinatieId;
+            opstartCombinatieNaam.textContent = `${combinatie.item_code} - ${combinatie.omschrijving}`;
+            opstartDatum.value = new Date().toISOString().split('T')[0];
+            opstartDisplay.value = '';
+            opstartAantal.value = '1';
+            
+            await laadOpstartAdressen();
+            opstartPopup.style.display = 'flex';
+            
+        } catch (err) {
+            alert('Fout: ' + err.message);
+        }
+    }
+    
+    if (bevestigOpstartBtn) {
+        bevestigOpstartBtn.addEventListener('click', async () => {
+            const adresId = opstartAdresSelect.value;
+            const datum = opstartDatum.value;
+            const display = opstartDisplay.value.trim();
+            const aantal = parseInt(opstartAantal.value) || 1;
+            
+            if (!adresId || !datum) {
+                alert('Selecteer een ziekenhuis en datum');
+                return;
+            }
+            
+            if (!confirm(`Weet je zeker dat je deze opstart wilt bevestigen?\n\nDit zal ${aantal} x de componenten uit de voorraad halen.`)) {
+                return;
+            }
+            
+            try {
+                const { data: comps, error: compError } = await window.supabase
+                    .from('combinatie_componenten')
+                    .select('*')
+                    .eq('combinatie_id', currentOpstartCombinatieId);
+                
+                if (compError) throw compError;
+                
+                if (comps.length === 0) {
+                    alert('Deze combinatie heeft geen componenten.');
+                    return;
+                }
+                
+                const { data: adresData } = await window.supabase
+                    .from('adressen')
+                    .select('instelling_naam')
+                    .eq('id', adresId)
+                    .single();
+                
+                const { error: logError } = await window.supabase
+                    .from('opstarten')
+                    .insert([{
+                        combinatie_id: currentOpstartCombinatieId,
+                        adres_id: parseInt(adresId),
+                        datum: datum,
+                        display: display || null,
+                        aantal: aantal,
+                        status: 'bevestigd',
+                        geregistreerd_door: (await window.supabase.auth.getUser()).data.user?.id
+                    }]);
+                
+                if (logError) throw logError;
+                
+                for (const comp of comps) {
+                    const { data: compItem } = await window.supabase
+                        .from('stock_items')
+                        .select('aantal')
+                        .eq('id', comp.component_id)
+                        .single();
+                    
+                    if (compItem) {
+                        const nieuwAantal = compItem.aantal - (comp.aantal * aantal);
+                        if (nieuwAantal < 0) {
+                            const { data: compName } = await window.supabase
+                                .from('stock_items')
+                                .select('omschrijving')
+                                .eq('id', comp.component_id)
+                                .single();
+                            
+                            if (!confirm(`Waarschuwing: ${compName?.omschrijving || 'Component'} heeft niet genoeg voorraad!\n\nHuidig: ${compItem.aantal}, Nodig: ${comp.aantal * aantal}\n\nWil je doorgaan met een negatieve voorraad?`)) {
+                                await window.supabase
+                                    .from('opstarten')
+                                    .delete()
+                                    .eq('combinatie_id', currentOpstartCombinatieId)
+                                    .eq('created_at', (await window.supabase.from('opstarten').select('created_at').order('created_at', { ascending: false }).limit(1)).data?.[0]?.created_at);
+                                
+                                alert('Opstart geannuleerd wegens onvoldoende voorraad.');
+                                opstartPopup.style.display = 'none';
+                                return;
+                            }
+                        }
+                        
+                        await window.supabase
+                            .from('stock_items')
+                            .update({ aantal: Math.max(0, nieuwAantal) })
+                            .eq('id', comp.component_id);
+                    }
+                }
+                
+                alert(`✅ Opstart succesvol uitgevoerd!\n\nComponenten zijn uit de voorraad gehaald.`);
+                opstartPopup.style.display = 'none';
+                laadItems();
+                
+            } catch (err) {
+                alert('Fout bij opstart: ' + err.message);
+            }
+        });
+    }
+    
+    if (closeOpstartPopup) {
+        closeOpstartPopup.addEventListener('click', () => {
+            opstartPopup.style.display = 'none';
         });
     }
     
@@ -724,6 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === itemPopup) itemPopup.style.display = 'none';
         if (e.target === combinatiePopup) combinatiePopup.style.display = 'none';
         if (e.target === mutatiePopup) mutatiePopup.style.display = 'none';
+        if (e.target === opstartPopup) opstartPopup.style.display = 'none';
     });
     
     function escapeHtml(text) {
