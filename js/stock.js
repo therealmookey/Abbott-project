@@ -361,6 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== COMBINATIE FUNCTIES =====
     if (addCombinatieBtn) {
         addCombinatieBtn.addEventListener('click', async () => {
+            console.log('Combinatie knop geklikt');
             currentCombinatieId = null;
             combinatiePopupTitle.textContent = 'Nieuwe combinatie';
             document.getElementById('combinatieCode').value = '';
@@ -369,31 +370,42 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('combinatieLocatie').value = '';
             componentenLijstData = [];
             toonComponentenLijst();
-            await vulComponentDropdown();
+            
+            // Laad items voor component dropdown
+            await laadComponenten();
             combinatiePopup.style.display = 'flex';
         });
     }
     
-    async function vulComponentDropdown() {
+    // Aparte functie voor laden componenten dropdown
+    async function laadComponenten() {
         if (!componentSelect) return;
-        const { data, error } = await window.supabase
-            .from('stock_items')
-            .select('id, item_code, omschrijving')
-            .not('id', 'in', '(select combinatie_id from combinatie_componenten)')
-            .order('item_code');
         
-        if (error) {
-            console.error('Fout:', error);
-            return;
+        try {
+            // Haal alle items op die nog geen combinatie zijn
+            const { data, error } = await window.supabase
+                .from('stock_items')
+                .select('id, item_code, omschrijving')
+                .order('item_code');
+            
+            if (error) throw error;
+            
+            // Filter items die al een combinatie zijn
+            const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
+            const beschikbareItems = data.filter(item => !combinatieIds.includes(item.id));
+            
+            componentSelect.innerHTML = '<option value="">Kies een component...</option>';
+            beschikbareItems.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.item_code} - ${item.omschrijving}`;
+                componentSelect.appendChild(option);
+            });
+            
+            console.log(`${beschikbareItems.length} beschikbare componenten geladen`);
+        } catch (err) {
+            console.error('Fout bij laden componenten:', err);
         }
-        
-        componentSelect.innerHTML = '<option value="">Kies een component...</option>';
-        data.forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = `${item.item_code} - ${item.omschrijving}`;
-            componentSelect.appendChild(option);
-        });
     }
     
     function toonComponentenLijst() {
