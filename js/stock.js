@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const componentAantal = document.getElementById('componentAantal');
     const addComponentBtn = document.getElementById('addComponentBtn');
     const componentenLijst = document.getElementById('componentenLijst');
+    const combinatieIdHidden = document.getElementById('combinatieId');
     const searchStock = document.getElementById('searchStock');
     const statusFilter = document.getElementById('statusFilter');
     const typeFilter = document.getElementById('typeFilter');
@@ -46,29 +47,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const mutatieCorrectieAantal = document.getElementById('mutatieCorrectieAantal');
     const mutatieReden = document.getElementById('mutatieReden');
     
-    // Opstart popup
-    const opstartPopup = document.getElementById('opstartPopup');
-    const closeOpstartPopup = document.getElementById('closeOpstartPopup');
-    const bevestigOpstartBtn = document.getElementById('bevestigOpstartBtn');
-    const opstartCombinatieNaam = document.getElementById('opstartCombinatieNaam');
-    const opstartAdresSelect = document.getElementById('opstartAdresSelect');
-    const opstartDatum = document.getElementById('opstartDatum');
-    const opstartDisplay = document.getElementById('opstartDisplay');
-    const opstartAantal = document.getElementById('opstartAantal');
-    
     let currentItemId = null;
     let currentCombinatieId = null;
     let currentMutatieItemId = null;
-    let currentOpstartCombinatieId = null;
     let alleItems = [];
     let componentenLijstData = [];
     let combinatieComponenten = [];
+    let isEditingCombinatie = false;
     
     // ===== MELDINGEN =====
     function showAlerts(items) {
         if (!stockAlerts) return;
         
-        // Combinatie items hebben geen minimum voorraad waarschuwing
         const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
         const lowItems = items.filter(item => 
             item.aantal <= item.minimum_stock && 
@@ -123,7 +113,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             alleItems = data || [];
             
-            // Haal combinatie componenten op
             const { data: compData, error: compError } = await window.supabase
                 .from('combinatie_componenten')
                 .select('*');
@@ -131,7 +120,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (compError) throw compError;
             combinatieComponenten = compData || [];
             
-            // Filter items
             let filteredData = [...alleItems];
             
             const zoekterm = searchStock?.value?.trim().toLowerCase();
@@ -216,7 +204,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     statusText = '⚠️ Laag';
                 }
                 
-                // Toon componenten voor combinatie
                 let componentInfo = '';
                 if (isCombinatie) {
                     const comps = combinatieComponenten.filter(c => c.combinatie_id === item.id);
@@ -245,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td style="padding: 10px;"><span class="stock-status ${statusClass}">${statusText}</span></td>
                         <td style="padding: 10px; text-align: center;">
                             ${isCombinatie ? `
-                                <button class="btn btn-success opstart-btn" data-id="${item.id}" style="margin-right: 5px;">🔄 Opstart</button>
+                                <button class="btn btn-warning edit-combinatie-btn" data-id="${item.id}" style="margin-right: 5px;">✏️</button>
                                 <button class="btn btn-info comp-btn" data-id="${item.id}" style="margin-right: 5px;">🔗</button>
                             ` : ''}
                             <button class="btn btn-secondary mutatie-btn" data-id="${item.id}" style="margin-right: 5px;">📦</button>
@@ -280,8 +267,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.comp-btn').forEach(btn => {
                 btn.addEventListener('click', () => toonCombinatieDetails(btn.dataset.id));
             });
-            document.querySelectorAll('.opstart-btn').forEach(btn => {
-                btn.addEventListener('click', () => openOpstartPopup(btn.dataset.id));
+            document.querySelectorAll('.edit-combinatie-btn').forEach(btn => {
+                btn.addEventListener('click', () => openEditCombinatiePopup(btn.dataset.id));
             });
             
         } catch (err) {
@@ -401,20 +388,74 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ===== COMBINATIE FUNCTIES =====
+    
+    // Nieuwe combinatie
     if (addCombinatieBtn) {
         addCombinatieBtn.addEventListener('click', async () => {
-            console.log('Combinatie knop geklikt');
+            isEditingCombinatie = false;
             currentCombinatieId = null;
             combinatiePopupTitle.textContent = 'Nieuwe combinatie';
             document.getElementById('combinatieCode').value = '';
             document.getElementById('combinatieOmschrijving').value = '';
             document.getElementById('combinatieLocatie').value = '';
+            combinatieIdHidden.value = '';
             componentenLijstData = [];
+            toonComponentenLijst();
+            await laadComponenten();
+            combinatiePopup.style.display = 'flex';
+        });
+    }
+    
+    // Bewerk combinatie
+    async function openEditCombinatiePopup(combinatieId) {
+        try {
+            isEditingCombinatie = true;
+            currentCombinatieId = combinatieId;
+            
+            // Haal combinatie info op
+            const { data: combinatie, error } = await window.supabase
+                .from('stock_items')
+                .select('*')
+                .eq('id', combinatieId)
+                .single();
+            
+            if (error) throw error;
+            
+            combinatiePopupTitle.textContent = 'Combinatie bewerken';
+            document.getElementById('combinatieCode').value = combinatie.item_code;
+            document.getElementById('combinatieOmschrijving').value = combinatie.omschrijving;
+            document.getElementById('combinatieLocatie').value = combinatie.locatie || '';
+            combinatieIdHidden.value = combinatieId;
+            
+            // Haal bestaande componenten op
+            const { data: comps, error: compError } = await window.supabase
+                .from('combinatie_componenten')
+                .select('*')
+                .eq('combinatie_id', combinatieId);
+            
+            if (compError) throw compError;
+            
+            // Zet componenten in de lijst
+            componentenLijstData = [];
+            for (const comp of comps) {
+                const compItem = alleItems.find(i => i.id === comp.component_id);
+                if (compItem) {
+                    componentenLijstData.push({
+                        id: comp.component_id,
+                        code: compItem.item_code,
+                        omschrijving: compItem.omschrijving,
+                        aantal: comp.aantal
+                    });
+                }
+            }
             toonComponentenLijst();
             
             await laadComponenten();
             combinatiePopup.style.display = 'flex';
-        });
+            
+        } catch (err) {
+            alert('Fout bij laden combinatie: ' + err.message);
+        }
     }
     
     async function laadComponenten() {
@@ -428,8 +469,26 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (error) throw error;
             
+            // Exclude huidige combinatie items en items die al in deze combinatie zitten
             const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
-            const beschikbareItems = data.filter(item => !combinatieIds.includes(item.id));
+            const huidigeCombinatieId = parseInt(combinatieIdHidden.value) || null;
+            
+            let beschikbareItems = data.filter(item => !combinatieIds.includes(item.id));
+            
+            // Als we een combinatie bewerken, voeg de eigen componenten toe aan beschikbare lijst
+            if (huidigeCombinatieId) {
+                const eigenComponenten = combinatieComponenten
+                    .filter(c => c.combinatie_id === huidigeCombinatieId)
+                    .map(c => c.component_id);
+                beschikbareItems = data.filter(item => 
+                    !combinatieIds.includes(item.id) || 
+                    eigenComponenten.includes(item.id)
+                );
+            }
+            
+            // Filter items die al in componentenLijstData zitten
+            const componentIds = componentenLijstData.map(c => c.id);
+            beschikbareItems = beschikbareItems.filter(item => !componentIds.includes(item.id));
             
             componentSelect.innerHTML = '<option value="">Kies een component...</option>';
             beschikbareItems.forEach(item => {
@@ -439,7 +498,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 componentSelect.appendChild(option);
             });
             
-            console.log(`${beschikbareItems.length} beschikbare componenten geladen`);
         } catch (err) {
             console.error('Fout bij laden componenten:', err);
         }
@@ -469,6 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const index = parseInt(btn.dataset.index);
                 componentenLijstData.splice(index, 1);
                 toonComponentenLijst();
+                laadComponenten(); // Refresh dropdown
             });
         });
     }
@@ -497,6 +556,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     aantal: aantal
                 });
                 toonComponentenLijst();
+                laadComponenten(); // Refresh dropdown
+                componentAantal.value = '1';
             }
         });
     }
@@ -506,6 +567,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const code = document.getElementById('combinatieCode').value.trim();
             const omschrijving = document.getElementById('combinatieOmschrijving').value.trim();
             const locatie = document.getElementById('combinatieLocatie').value.trim();
+            const combinatieId = parseInt(combinatieIdHidden.value) || null;
             
             if (!code || !omschrijving) {
                 alert('Code en omschrijving zijn verplicht');
@@ -518,23 +580,49 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             try {
-                const { data: itemData, error: itemError } = await window.supabase
-                    .from('stock_items')
-                    .insert([{
-                        item_code: code,
-                        omschrijving: omschrijving,
-                        aantal: 0,
-                        minimum_stock: 0,
-                        locatie: locatie || null
-                    }])
-                    .select();
+                let combinatieItemId = combinatieId;
                 
-                if (itemError) throw itemError;
+                if (isEditingCombinatie && combinatieId) {
+                    // Update bestaande combinatie
+                    const { error: updateError } = await window.supabase
+                        .from('stock_items')
+                        .update({
+                            item_code: code,
+                            omschrijving: omschrijving,
+                            locatie: locatie || null
+                        })
+                        .eq('id', combinatieId);
+                    
+                    if (updateError) throw updateError;
+                    
+                    // Verwijder oude componenten
+                    const { error: deleteError } = await window.supabase
+                        .from('combinatie_componenten')
+                        .delete()
+                        .eq('combinatie_id', combinatieId);
+                    
+                    if (deleteError) throw deleteError;
+                    
+                } else {
+                    // Nieuwe combinatie
+                    const { data: itemData, error: itemError } = await window.supabase
+                        .from('stock_items')
+                        .insert([{
+                            item_code: code,
+                            omschrijving: omschrijving,
+                            aantal: 0,
+                            minimum_stock: 0,
+                            locatie: locatie || null
+                        }])
+                        .select();
+                    
+                    if (itemError) throw itemError;
+                    combinatieItemId = itemData[0].id;
+                }
                 
-                const combinatieId = itemData[0].id;
-                
+                // Voeg componenten toe
                 const compData = componentenLijstData.map(comp => ({
-                    combinatie_id: combinatieId,
+                    combinatie_id: combinatieItemId,
                     component_id: comp.id,
                     aantal: comp.aantal
                 }));
@@ -545,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (compError) throw compError;
                 
-                alert('Combinatie aangemaakt!');
+                alert(isEditingCombinatie ? 'Combinatie bijgewerkt!' : 'Combinatie aangemaakt!');
                 combinatiePopup.style.display = 'none';
                 laadItems();
                 
@@ -678,155 +766,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // ===== OPSTART FUNCTIES =====
-    
-    async function laadOpstartAdressen() {
-        if (!opstartAdresSelect) return;
-        
-        const { data, error } = await window.supabase
-            .from('adressen')
-            .select('id, instelling_naam, straat, postcode, plaats')
-            .order('instelling_naam');
-        
-        if (error) {
-            console.error('Fout bij laden adressen:', error);
-            return;
-        }
-        
-        opstartAdresSelect.innerHTML = '<option value="">Kies een ziekenhuis...</option>';
-        data.forEach(adres => {
-            const option = document.createElement('option');
-            option.value = adres.id;
-            option.textContent = `${adres.instelling_naam} - ${adres.straat}, ${adres.plaats}`;
-            opstartAdresSelect.appendChild(option);
-        });
-    }
-    
-    async function openOpstartPopup(combinatieId) {
-        try {
-            const { data: combinatie, error } = await window.supabase
-                .from('stock_items')
-                .select('*')
-                .eq('id', combinatieId)
-                .single();
-            
-            if (error) throw error;
-            
-            currentOpstartCombinatieId = combinatieId;
-            opstartCombinatieNaam.textContent = `${combinatie.item_code} - ${combinatie.omschrijving}`;
-            opstartDatum.value = new Date().toISOString().split('T')[0];
-            opstartDisplay.value = '';
-            opstartAantal.value = '1';
-            
-            await laadOpstartAdressen();
-            opstartPopup.style.display = 'flex';
-            
-        } catch (err) {
-            alert('Fout: ' + err.message);
-        }
-    }
-    
-    if (bevestigOpstartBtn) {
-        bevestigOpstartBtn.addEventListener('click', async () => {
-            const adresId = opstartAdresSelect.value;
-            const datum = opstartDatum.value;
-            const display = opstartDisplay.value.trim();
-            const aantal = parseInt(opstartAantal.value) || 1;
-            
-            if (!adresId || !datum) {
-                alert('Selecteer een ziekenhuis en datum');
-                return;
-            }
-            
-            if (!confirm(`Weet je zeker dat je deze opstart wilt bevestigen?\n\nDit zal ${aantal} x de componenten uit de voorraad halen.`)) {
-                return;
-            }
-            
-            try {
-                const { data: comps, error: compError } = await window.supabase
-                    .from('combinatie_componenten')
-                    .select('*')
-                    .eq('combinatie_id', currentOpstartCombinatieId);
-                
-                if (compError) throw compError;
-                
-                if (comps.length === 0) {
-                    alert('Deze combinatie heeft geen componenten.');
-                    return;
-                }
-                
-                const { data: adresData } = await window.supabase
-                    .from('adressen')
-                    .select('instelling_naam')
-                    .eq('id', adresId)
-                    .single();
-                
-                const { error: logError } = await window.supabase
-                    .from('opstarten')
-                    .insert([{
-                        combinatie_id: currentOpstartCombinatieId,
-                        adres_id: parseInt(adresId),
-                        datum: datum,
-                        display: display || null,
-                        aantal: aantal,
-                        status: 'bevestigd',
-                        geregistreerd_door: (await window.supabase.auth.getUser()).data.user?.id
-                    }]);
-                
-                if (logError) throw logError;
-                
-                for (const comp of comps) {
-                    const { data: compItem } = await window.supabase
-                        .from('stock_items')
-                        .select('aantal')
-                        .eq('id', comp.component_id)
-                        .single();
-                    
-                    if (compItem) {
-                        const nieuwAantal = compItem.aantal - (comp.aantal * aantal);
-                        if (nieuwAantal < 0) {
-                            const { data: compName } = await window.supabase
-                                .from('stock_items')
-                                .select('omschrijving')
-                                .eq('id', comp.component_id)
-                                .single();
-                            
-                            if (!confirm(`Waarschuwing: ${compName?.omschrijving || 'Component'} heeft niet genoeg voorraad!\n\nHuidig: ${compItem.aantal}, Nodig: ${comp.aantal * aantal}\n\nWil je doorgaan met een negatieve voorraad?`)) {
-                                await window.supabase
-                                    .from('opstarten')
-                                    .delete()
-                                    .eq('combinatie_id', currentOpstartCombinatieId)
-                                    .eq('created_at', (await window.supabase.from('opstarten').select('created_at').order('created_at', { ascending: false }).limit(1)).data?.[0]?.created_at);
-                                
-                                alert('Opstart geannuleerd wegens onvoldoende voorraad.');
-                                opstartPopup.style.display = 'none';
-                                return;
-                            }
-                        }
-                        
-                        await window.supabase
-                            .from('stock_items')
-                            .update({ aantal: Math.max(0, nieuwAantal) })
-                            .eq('id', comp.component_id);
-                    }
-                }
-                
-                alert(`✅ Opstart succesvol uitgevoerd!\n\nComponenten zijn uit de voorraad gehaald.`);
-                opstartPopup.style.display = 'none';
-                laadItems();
-                
-            } catch (err) {
-                alert('Fout bij opstart: ' + err.message);
-            }
-        });
-    }
-    
-    if (closeOpstartPopup) {
-        closeOpstartPopup.addEventListener('click', () => {
-            opstartPopup.style.display = 'none';
-        });
-    }
-    
     // ===== TOON COMBINATIE DETAILS =====
     function toonCombinatieDetails(id) {
         const comps = combinatieComponenten.filter(c => c.combinatie_id === id);
@@ -876,7 +815,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === itemPopup) itemPopup.style.display = 'none';
         if (e.target === combinatiePopup) combinatiePopup.style.display = 'none';
         if (e.target === mutatiePopup) mutatiePopup.style.display = 'none';
-        if (e.target === opstartPopup) opstartPopup.style.display = 'none';
     });
     
     function escapeHtml(text) {
