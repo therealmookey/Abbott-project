@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeRegistratiePopup = document.getElementById('closeRegistratiePopup');
     const popupTitle = document.getElementById('popupTitle');
     const ziekenhuisSelect = document.getElementById('ziekenhuisSelect');
-    const tonSelect = document.getElementById('tonSelect');
     const searchZiekenhuis = document.getElementById('searchZiekenhuis');
     const filterDatumVanaf = document.getElementById('filterDatumVanaf');
     const filterDatumTot = document.getElementById('filterDatumTot');
@@ -26,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let currentRegistratieId = null;
     let adressen = [];
-    let tonnen = [];
     let alleRegistraties = [];
     
     // Laad adressen voor dropdown
@@ -55,36 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Laad tonnen voor dropdown
-    async function laadTonnen() {
-        const { data, error } = await window.supabase
-            .from('tonnen')
-            .select('id, tonnummer, gewicht, status')
-            .eq('status', 'voorraad')
-            .order('tonnummer');
-        
-        if (error) {
-            console.error('Fout bij laden tonnen:', error);
-            return [];
-        }
-        tonnen = data || [];
-        return tonnen;
-    }
-    
-    function vulTonDropdown(selectedId) {
-        if (!tonSelect) return;
-        tonSelect.innerHTML = '<option value="">Geen ton gekoppeld...</option>';
-        tonnen.forEach(ton => {
-            const option = document.createElement('option');
-            option.value = ton.id;
-            option.textContent = `${ton.tonnummer} (${ton.gewicht} kg)`;
-            if (selectedId && ton.id === selectedId) {
-                option.selected = true;
-            }
-            tonSelect.appendChild(option);
-        });
-    }
-    
     // Laad registraties met filters
     async function laadRegistraties() {
         if (!registratiesLijst) return;
@@ -95,8 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .from('ophaalregistraties')
             .select(`
                 *,
-                ziekenhuis:ziekenhuis_id (id, instelling_naam, straat, postcode, plaats),
-                ton:ton_id (id, tonnummer, gewicht)
+                ziekenhuis:ziekenhuis_id (id, instelling_naam, straat, postcode, plaats)
             `)
             .order('registratiedatum', { ascending: false })
             .order('created_at', { ascending: false });
@@ -143,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th style="padding: 10px; text-align: left;">Ziekenhuis</th>
                         <th style="padding: 10px; text-align: left;">Datum</th>
                         <th style="padding: 10px; text-align: right;">Gewicht (kg)</th>
-                        <th style="padding: 10px; text-align: left;">Ton</th>
                         <th style="padding: 10px; text-align: left;">Opmerkingen</th>
                         <th style="padding: 10px; text-align: center;">Acties</th>
                     </tr>
@@ -153,7 +119,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let teller = 1;
         for (const r of filteredData) {
-            const tonInfo = r.ton ? `${r.ton.tonnummer} (${r.ton.gewicht} kg)` : '-';
             const datum = new Date(r.registratiedatum + 'T00:00:00');
             const datumStr = datum.toLocaleDateString('nl-NL');
             
@@ -163,7 +128,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td style="padding: 10px;"><strong>${escapeHtml(r.ziekenhuis?.instelling_naam || 'Onbekend')}</strong></td>
                     <td style="padding: 10px;">${datumStr}</td>
                     <td style="padding: 10px; text-align: right;">${r.gewicht}</td>
-                    <td style="padding: 10px;">${tonInfo}</td>
                     <td style="padding: 10px;">${escapeHtml(r.opmerkingen || '-')}</td>
                     <td style="padding: 10px; text-align: center;">
                         <button class="btn btn-secondary edit-btn" data-id="${r.id}" style="margin-right: 5px;">✏️</button>
@@ -204,8 +168,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('opmerkingen').value = '';
             await laadAdressen();
             vulAdresDropdown();
-            await laadTonnen();
-            vulTonDropdown();
             ziekenhuisSelect.value = '';
             registratiePopup.style.display = 'flex';
         });
@@ -232,9 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('registratieDatum').value = data.registratiedatum;
             document.getElementById('gewicht').value = data.gewicht;
             document.getElementById('opmerkingen').value = data.opmerkingen || '';
-            
-            await laadTonnen();
-            vulTonDropdown(data.ton_id);
             
             registratiePopup.style.display = 'flex';
             
@@ -269,7 +228,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const ziekenhuisId = ziekenhuisSelect?.value;
             const datum = document.getElementById('registratieDatum')?.value;
             const gewicht = document.getElementById('gewicht')?.value;
-            const tonId = tonSelect?.value;
             const opmerkingen = document.getElementById('opmerkingen')?.value;
             
             if (!ziekenhuisId || !datum || !gewicht) {
@@ -281,7 +239,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 ziekenhuis_id: parseInt(ziekenhuisId),
                 registratiedatum: datum,
                 gewicht: parseFloat(gewicht),
-                ton_id: tonId ? parseInt(tonId) : null,
                 opmerkingen: opmerkingen || null
             };
             

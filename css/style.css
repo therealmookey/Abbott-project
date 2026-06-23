@@ -1711,3 +1711,119 @@ hr {
         width: 100%;
     }
 }
+/* ===== FILTER RIJ - NAAST ELKAAR ===== */
+.filter-section {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.filter-item {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 150px;
+    max-width: 250px;
+}
+
+.filter-item label {
+    font-size: 0.8rem;
+    color: #495057;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.filter-item .search-input,
+.filter-item .form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+    transition: border-color 0.2s;
+}
+
+.filter-item .search-input:focus,
+.filter-item .form-input:focus {
+    outline: none;
+    border-color: #2c7da0;
+    box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
+}
+
+.filter-item .form-input {
+    min-width: 140px;
+}
+
+.filter-buttons {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 180px;
+    max-width: 250px;
+}
+
+.filter-buttons .btn {
+    padding: 8px 20px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex: 1;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .filter-item {
+        min-width: 140px;
+        max-width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-item {
+        min-width: 100%;
+        max-width: 100%;
+    }
+    
+    .filter-item .form-input {
+        min-width: 100%;
+    }
+    
+    .filter-buttons {
+        flex-direction: row;
+        min-width: 100%;
+        max-width: 100%;
+    }
+    
+    .filter-buttons .btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-section {
+        padding: 0.75rem;
+    }
+    
+    .filter-buttons {
+        flex-direction: column;
+    }
+    
+    .filter-buttons .btn {
+        width: 100%;
+    }
+}
