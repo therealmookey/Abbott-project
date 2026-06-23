@@ -232,11 +232,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td style="padding: 10px;"><span class="stock-status ${statusClass}">${statusText}</span></td>
                         <td style="padding: 10px; text-align: center;">
                             ${isCombinatie ? `
-                                <button class="btn btn-warning edit-combinatie-btn" data-id="${item.id}" style="margin-right: 5px;">✏️</button>
-                                <button class="btn btn-info comp-btn" data-id="${item.id}" style="margin-right: 5px;">🔗</button>
-                            ` : ''}
+                                <button class="btn btn-warning edit-combinatie-btn" data-id="${item.id}" style="margin-right: 5px;">✏️ Bewerk combinatie</button>
+                                <button class="btn btn-info comp-btn" data-id="${item.id}" style="margin-right: 5px;">🔗 Bekijk componenten</button>
+                            ` : `
+                                <button class="btn btn-secondary edit-btn" data-id="${item.id}" style="margin-right: 5px;">✏️</button>
+                            `}
                             <button class="btn btn-secondary mutatie-btn" data-id="${item.id}" style="margin-right: 5px;">📦</button>
-                            <button class="btn btn-secondary edit-btn" data-id="${item.id}" style="margin-right: 5px;">✏️</button>
                             <button class="btn btn-danger delete-btn" data-id="${item.id}">🗑️</button>
                         </td>
                     </tr>
@@ -389,7 +390,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ===== COMBINATIE FUNCTIES =====
     
-    // Nieuwe combinatie
     if (addCombinatieBtn) {
         addCombinatieBtn.addEventListener('click', async () => {
             isEditingCombinatie = false;
@@ -406,13 +406,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Bewerk combinatie
     async function openEditCombinatiePopup(combinatieId) {
         try {
             isEditingCombinatie = true;
             currentCombinatieId = combinatieId;
             
-            // Haal combinatie info op
             const { data: combinatie, error } = await window.supabase
                 .from('stock_items')
                 .select('*')
@@ -427,7 +425,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('combinatieLocatie').value = combinatie.locatie || '';
             combinatieIdHidden.value = combinatieId;
             
-            // Haal bestaande componenten op
             const { data: comps, error: compError } = await window.supabase
                 .from('combinatie_componenten')
                 .select('*')
@@ -435,7 +432,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (compError) throw compError;
             
-            // Zet componenten in de lijst
             componentenLijstData = [];
             for (const comp of comps) {
                 const compItem = alleItems.find(i => i.id === comp.component_id);
@@ -469,13 +465,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (error) throw error;
             
-            // Exclude huidige combinatie items en items die al in deze combinatie zitten
             const combinatieIds = combinatieComponenten.map(c => c.combinatie_id);
             const huidigeCombinatieId = parseInt(combinatieIdHidden.value) || null;
             
             let beschikbareItems = data.filter(item => !combinatieIds.includes(item.id));
             
-            // Als we een combinatie bewerken, voeg de eigen componenten toe aan beschikbare lijst
             if (huidigeCombinatieId) {
                 const eigenComponenten = combinatieComponenten
                     .filter(c => c.combinatie_id === huidigeCombinatieId)
@@ -486,7 +480,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 );
             }
             
-            // Filter items die al in componentenLijstData zitten
             const componentIds = componentenLijstData.map(c => c.id);
             beschikbareItems = beschikbareItems.filter(item => !componentIds.includes(item.id));
             
@@ -527,7 +520,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const index = parseInt(btn.dataset.index);
                 componentenLijstData.splice(index, 1);
                 toonComponentenLijst();
-                laadComponenten(); // Refresh dropdown
+                laadComponenten();
             });
         });
     }
@@ -556,7 +549,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     aantal: aantal
                 });
                 toonComponentenLijst();
-                laadComponenten(); // Refresh dropdown
+                laadComponenten();
                 componentAantal.value = '1';
             }
         });
@@ -583,7 +576,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 let combinatieItemId = combinatieId;
                 
                 if (isEditingCombinatie && combinatieId) {
-                    // Update bestaande combinatie
                     const { error: updateError } = await window.supabase
                         .from('stock_items')
                         .update({
@@ -595,7 +587,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (updateError) throw updateError;
                     
-                    // Verwijder oude componenten
                     const { error: deleteError } = await window.supabase
                         .from('combinatie_componenten')
                         .delete()
@@ -604,7 +595,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (deleteError) throw deleteError;
                     
                 } else {
-                    // Nieuwe combinatie
                     const { data: itemData, error: itemError } = await window.supabase
                         .from('stock_items')
                         .insert([{
@@ -620,7 +610,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     combinatieItemId = itemData[0].id;
                 }
                 
-                // Voeg componenten toe
                 const compData = componentenLijstData.map(comp => ({
                     combinatie_id: combinatieItemId,
                     component_id: comp.id,
@@ -770,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function toonCombinatieDetails(id) {
         const comps = combinatieComponenten.filter(c => c.combinatie_id === id);
         if (comps.length === 0) {
-            alert('Geen componenten gevonden voor deze combinatie.');
+            alert('⚠️ Geen componenten gevonden voor deze combinatie.\n\nVoeg componenten toe via "Bewerk combinatie".');
             return;
         }
         
