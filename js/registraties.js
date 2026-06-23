@@ -16,10 +16,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveRegistratieBtn = document.getElementById('saveRegistratieBtn');
     const closeRegistratiePopup = document.getElementById('closeRegistratiePopup');
     const popupTitle = document.getElementById('popupTitle');
+    const registratieType = document.getElementById('registratieType');
     const ziekenhuisSelect = document.getElementById('ziekenhuisSelect');
+    const ophalingVeldenReg = document.getElementById('ophalingVeldenReg');
+    const opstartVelden = document.getElementById('opstartVelden');
+    const combinatieSelect = document.getElementById('combinatieSelect');
+    const opstartAantal = document.getElementById('opstartAantal');
     const searchZiekenhuis = document.getElementById('searchZiekenhuis');
     const filterDatumVanaf = document.getElementById('filterDatumVanaf');
     const filterDatumTot = document.getElementById('filterDatumTot');
+    const typeFilter = document.getElementById('typeFilter');
     const filterBtn = document.getElementById('filterBtn');
     const resetFilterBtn = document.getElementById('resetFilterBtn');
     const exportExcelBtn = document.getElementById('exportExcelBtn');
@@ -27,7 +33,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let currentRegistratieId = null;
     let adressen = [];
+    let combinaties = [];
     let alleRegistraties = [];
+    
+    // ===== LAAD DATA =====
     
     // Laad adressen voor dropdown
     async function laadAdressen() {
@@ -55,6 +64,62 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Laad combinaties voor opstart dropdown
+    async function laadCombinaties() {
+        try {
+            // Haal alle combinatie items op
+            const { data: comps, error: compError } = await window.supabase
+                .from('combinatie_componenten')
+                .select('combinatie_id');
+            
+            if (compError) throw compError;
+            
+            const combinatieIds = comps.map(c => c.combinatie_id);
+            
+            // Haal de combinatie items op
+            const { data, error } = await window.supabase
+                .from('stock_items')
+                .select('id, item_code, omschrijving, aantal')
+                .in('id', combinatieIds)
+                .order('item_code');
+            
+            if (error) throw error;
+            
+            combinaties = data || [];
+            return combinaties;
+        } catch (err) {
+            console.error('Fout bij laden combinaties:', err);
+            return [];
+        }
+    }
+    
+    function vulCombinatieDropdown() {
+        if (!combinatieSelect) return;
+        combinatieSelect.innerHTML = '<option value="">Kies een combinatie...</option>';
+        combinaties.forEach(combo => {
+            const option = document.createElement('option');
+            option.value = combo.id;
+            option.textContent = `${combo.item_code} - ${combo.omschrijving} (${combo.aantal} beschikbaar)`;
+            combinatieSelect.appendChild(option);
+        });
+    }
+    
+    // Toon/verberg velden op basis van type
+    if (registratieType) {
+        registratieType.addEventListener('change', (e) => {
+            const type = e.target.value;
+            if (type === 'opstart') {
+                ophalingVeldenReg.style.display = 'none';
+                opstartVelden.style.display = 'block';
+                document.getElementById('gewicht').required = false;
+            } else {
+                ophalingVeldenReg.style.display = 'block';
+                opstartVelden.style.display = 'none';
+                document.getElementById('gewicht').required = true;
+            }
+        });
+    }
+    
     // Laad registraties met filters
     async function laadRegistraties() {
         if (!registratiesLijst) return;
@@ -65,7 +130,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .from('ophaalregistraties')
             .select(`
                 *,
-                ziekenhuis:ziekenhuis_id (id, instelling_naam, straat, postcode, plaats)
+                ziekenhuis:ziekenhuis_id (id, instelling_naam, straat, postcode, plaats),
+                combinatie:combinatie_id (id, item_code, omschrijving)
             `)
             .order('registratiedatum', { ascending: false })
             .order('created_at', { ascending: false });
@@ -76,6 +142,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (filterDatumTot?.value) {
             query = query.lte('registratiedatum', filterDatumTot.value);
+        }
+        
+        // Filter op type
+        if (typeFilter?.value && typeFilter.value !== 'alles') {
+            query = query.eq('type', typeFilter.value);
         }
         
         const { data, error } = await query;
@@ -98,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
         alleRegistraties = filteredData;
         
         if (filteredData.length === 0) {
-            registratiesLijst.innerHTML = '<p>Geen ophaalregistraties gevonden. Klik op "+ Nieuwe registratie" om er een toe te voegen.</p>';
+            registratiesLijst.innerHTML = '<p>Geen registraties gevonden. Klik op "+ Nieuwe registratie" om er een toe te voegen.</p>';
             return;
         }
         
@@ -109,9 +180,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <thead>
                     <tr style="background-color: #2c7da0; color: white;">
                         <th style="padding: 10px; text-align: left;">#</th>
+                        <th style="padding: 10px; text-align: left;">Type</th>
                         <th style="padding: 10px; text-align: left;">Ziekenhuis</th>
                         <th style="padding: 10px; text-align: left;">Datum</th>
-                        <th style="padding: 10px; text-align: right;">Gewicht (kg)</th>
+                        <th style="padding: 10px; text-align: right;">Gewicht / Aantal</th>
                         <th style="padding: 10px; text-align: left;">Opmerkingen</th>
                         <th style="padding: 10px; text-align: center;">Acties</th>
                     </tr>
@@ -124,14 +196,23 @@ document.addEventListener('DOMContentLoaded', function() {
         for (const r of filteredData) {
             const datum = new Date(r.registratiedatum + 'T00:00:00');
             const datumStr = datum.toLocaleDateString('nl-NL');
-            totaalGewicht += r.gewicht || 0;
+            
+            let typeLabel = r.type === 'opstart' ? '🔄 Opstart' : '📦 Ophaling';
+            let waardeLabel = '';
+            if (r.type === 'opstart') {
+                waardeLabel = `${r.opstart_aantal || 1}x ${r.combinatie?.item_code || ''}`;
+            } else {
+                waardeLabel = `${r.gewicht} kg`;
+                totaalGewicht += r.gewicht || 0;
+            }
             
             html += `
                 <tr style="border-bottom: 1px solid #e9ecef;">
                     <td style="padding: 10px;">${teller}</td>
+                    <td style="padding: 10px;">${typeLabel}</td>
                     <td style="padding: 10px;"><strong>${escapeHtml(r.ziekenhuis?.instelling_naam || 'Onbekend')}</strong></td>
                     <td style="padding: 10px;">${datumStr}</td>
-                    <td style="padding: 10px; text-align: right;">${r.gewicht}</td>
+                    <td style="padding: 10px; text-align: right;">${waardeLabel}</td>
                     <td style="padding: 10px;">${escapeHtml(r.opmerkingen || '-')}</td>
                     <td style="padding: 10px; text-align: center;">
                         <button class="btn btn-secondary edit-btn" data-id="${r.id}" style="margin-right: 5px;">✏️</button>
@@ -148,8 +229,8 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div style="margin-top: 10px; color: #6c757d; font-size: 0.9rem; display: flex; flex-wrap: wrap; gap: 20px;">
                 <span><strong>Totaal registraties:</strong> ${filteredData.length}</span>
-                <span><strong>Totaal gewicht:</strong> ${totaalGewicht.toFixed(1)} kg</span>
-                <span><strong>Ziekenhuizen:</strong> ${new Set(filteredData.map(r => r.ziekenhuis?.id)).size}</span>
+                ${typeFilter?.value === 'opstart' || typeFilter?.value === 'alles' ? `<span><strong>Totaal opstarten:</strong> ${filteredData.filter(r => r.type === 'opstart').length}</span>` : ''}
+                ${typeFilter?.value === 'ophaling' || typeFilter?.value === 'alles' ? `<span><strong>Totaal gewicht:</strong> ${totaalGewicht.toFixed(1)} kg</span>` : ''}
             </div>
         `;
         
@@ -170,20 +251,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const rows = document.querySelectorAll('#registratiesTabel tbody tr');
         rows.forEach(row => {
             const cols = row.querySelectorAll('td');
-            if (cols.length >= 5) {
+            if (cols.length >= 6) {
                 data.push({
                     nummer: cols[0].textContent.trim(),
-                    ziekenhuis: cols[1].textContent.trim(),
-                    datum: cols[2].textContent.trim(),
-                    gewicht: parseFloat(cols[3].textContent.trim()) || 0,
-                    opmerkingen: cols[4].textContent.trim()
+                    type: cols[1].textContent.trim(),
+                    ziekenhuis: cols[2].textContent.trim(),
+                    datum: cols[3].textContent.trim(),
+                    gewicht_aantal: cols[4].textContent.trim(),
+                    opmerkingen: cols[5].textContent.trim()
                 });
             }
         });
         return data;
     }
     
-    // Export naar Excel
     if (exportExcelBtn) {
         exportExcelBtn.addEventListener('click', () => {
             const data = getExportData();
@@ -196,21 +277,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const ws = XLSX.utils.json_to_sheet(data);
             XLSX.utils.book_append_sheet(wb, ws, 'Registraties');
             
-            // Kolombreedtes instellen
             ws['!cols'] = [
                 { wch: 6 },   // #
+                { wch: 15 },  // Type
                 { wch: 30 },  // Ziekenhuis
                 { wch: 15 },  // Datum
-                { wch: 15 },  // Gewicht
+                { wch: 15 },  // Gewicht/Aantal
                 { wch: 30 }   // Opmerkingen
             ];
             
-            const fileName = `Ophaalregistraties_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const fileName = `Registraties_${new Date().toISOString().split('T')[0]}.xlsx`;
             XLSX.writeFile(wb, fileName);
         });
     }
     
-    // Export naar PDF
     if (exportPdfBtn) {
         exportPdfBtn.addEventListener('click', () => {
             const data = getExportData();
@@ -225,7 +305,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            let totaalGewicht = data.reduce((sum, r) => sum + r.gewicht, 0);
             const datum = new Date().toLocaleDateString('nl-NL');
             
             let html = `
@@ -233,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <html>
             <head>
                 <meta charset="UTF-8">
-                <title>Ophaalregistraties</title>
+                <title>Registraties</title>
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; background: white; }
@@ -245,14 +324,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     td { padding: 6px 10px; border-bottom: 1px solid #e9ecef; }
                     tr:nth-child(even) { background-color: #f8f9fa; }
                     .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e9ecef; text-align: center; font-size: 11px; color: #6c757d; }
-                    .summary { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: flex; gap: 30px; flex-wrap: wrap; }
-                    .summary-item { font-size: 13px; }
-                    .summary-item strong { color: #2c7da0; }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <h1>📋 Ophaalregistraties</h1>
+                    <h1>📋 Registraties</h1>
                     <p>Gegenereerd op ${datum}</p>
                 </div>
                 
@@ -260,9 +336,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Type</th>
                             <th>Ziekenhuis</th>
                             <th>Datum</th>
-                            <th style="text-align: right;">Gewicht (kg)</th>
+                            <th>Gewicht / Aantal</th>
                             <th>Opmerkingen</th>
                         </tr>
                     </thead>
@@ -273,9 +350,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += `
                     <tr>
                         <td>${index + 1}</td>
+                        <td>${escapeHtml(r.type)}</td>
                         <td>${escapeHtml(r.ziekenhuis)}</td>
                         <td>${r.datum}</td>
-                        <td style="text-align: right;">${r.gewicht.toFixed(1)}</td>
+                        <td style="text-align: right;">${escapeHtml(r.gewicht_aantal)}</td>
                         <td>${escapeHtml(r.opmerkingen || '-')}</td>
                     </tr>
                 `;
@@ -285,14 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tbody>
                 </table>
                 
-                <div class="summary">
-                    <span class="summary-item"><strong>📋 Totaal registraties:</strong> ${data.length}</span>
-                    <span class="summary-item"><strong>⚖️ Totaal gewicht:</strong> ${totaalGewicht.toFixed(1)} kg</span>
-                    <span class="summary-item"><strong>🏥 Ziekenhuizen:</strong> ${new Set(data.map(r => r.ziekenhuis)).size}</span>
-                </div>
-                
                 <div class="footer">
-                    Route gegenereerd via Abbott Platform
+                    Abbott Platform - Registraties overzicht
                 </div>
             </body>
             </html>
@@ -310,16 +382,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // ===== CRUD FUNCTIES =====
+    
     // Nieuwe registratie
     if (addRegistratieBtn) {
         addRegistratieBtn.addEventListener('click', async () => {
             currentRegistratieId = null;
-            popupTitle.textContent = 'Nieuwe ophaalregistratie';
+            popupTitle.textContent = 'Nieuwe registratie';
             document.getElementById('registratieDatum').value = new Date().toISOString().split('T')[0];
             document.getElementById('gewicht').value = '';
             document.getElementById('opmerkingen').value = '';
+            document.getElementById('opstartAantal').value = '1';
+            
             await laadAdressen();
             vulAdresDropdown();
+            await laadCombinaties();
+            vulCombinatieDropdown();
+            
+            registratieType.value = 'ophaling';
+            ophalingVeldenReg.style.display = 'block';
+            opstartVelden.style.display = 'none';
             ziekenhuisSelect.value = '';
             registratiePopup.style.display = 'flex';
         });
@@ -341,11 +423,25 @@ document.addEventListener('DOMContentLoaded', function() {
             
             await laadAdressen();
             vulAdresDropdown();
-            ziekenhuisSelect.value = data.ziekenhuis_id;
+            await laadCombinaties();
+            vulCombinatieDropdown();
             
+            ziekenhuisSelect.value = data.ziekenhuis_id;
             document.getElementById('registratieDatum').value = data.registratiedatum;
-            document.getElementById('gewicht').value = data.gewicht;
             document.getElementById('opmerkingen').value = data.opmerkingen || '';
+            
+            registratieType.value = data.type || 'ophaling';
+            
+            if (data.type === 'opstart') {
+                ophalingVeldenReg.style.display = 'none';
+                opstartVelden.style.display = 'block';
+                combinatieSelect.value = data.combinatie_id || '';
+                document.getElementById('opstartAantal').value = data.opstart_aantal || 1;
+            } else {
+                ophalingVeldenReg.style.display = 'block';
+                opstartVelden.style.display = 'none';
+                document.getElementById('gewicht').value = data.gewicht || '';
+            }
             
             registratiePopup.style.display = 'flex';
             
@@ -359,6 +455,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!confirm('Weet je zeker dat je deze registratie wilt verwijderen?')) return;
         
         try {
+            // Check of het een opstart was, dan moeten we de voorraad herstellen
+            const { data } = await window.supabase
+                .from('ophaalregistraties')
+                .select('type, combinatie_id, opstart_aantal')
+                .eq('id', id)
+                .single();
+            
             const { error } = await window.supabase
                 .from('ophaalregistraties')
                 .delete()
@@ -377,22 +480,57 @@ document.addEventListener('DOMContentLoaded', function() {
     // Opslaan registratie
     if (saveRegistratieBtn) {
         saveRegistratieBtn.addEventListener('click', async () => {
+            const type = registratieType?.value;
             const ziekenhuisId = ziekenhuisSelect?.value;
             const datum = document.getElementById('registratieDatum')?.value;
-            const gewicht = document.getElementById('gewicht')?.value;
             const opmerkingen = document.getElementById('opmerkingen')?.value;
             
-            if (!ziekenhuisId || !datum || !gewicht) {
-                alert('Vul alle verplichte velden in (ziekenhuis, datum, gewicht)');
+            if (!ziekenhuisId || !datum || !type) {
+                alert('Vul alle verplichte velden in');
                 return;
             }
             
-            const registratieData = {
+            let registratieData = {
                 ziekenhuis_id: parseInt(ziekenhuisId),
                 registratiedatum: datum,
-                gewicht: parseFloat(gewicht),
+                type: type,
                 opmerkingen: opmerkingen || null
             };
+            
+            if (type === 'ophaling') {
+                const gewicht = document.getElementById('gewicht')?.value;
+                if (!gewicht) {
+                    alert('Gewicht is verplicht voor ophaling');
+                    return;
+                }
+                registratieData.gewicht = parseFloat(gewicht);
+                registratieData.combinatie_id = null;
+                registratieData.opstart_aantal = null;
+            } else if (type === 'opstart') {
+                const combinatieId = combinatieSelect?.value;
+                const aantal = parseInt(document.getElementById('opstartAantal')?.value) || 1;
+                
+                if (!combinatieId) {
+                    alert('Selecteer een combinatie');
+                    return;
+                }
+                
+                // Controleer of de combinatie voldoende voorraad heeft
+                const { data: comboCheck } = await window.supabase
+                    .from('stock_items')
+                    .select('aantal')
+                    .eq('id', combinatieId)
+                    .single();
+                
+                if (!comboCheck || comboCheck.aantal < aantal) {
+                    alert(`Niet genoeg voorraad! Huidig: ${comboCheck?.aantal || 0}, Nodig: ${aantal}`);
+                    return;
+                }
+                
+                registratieData.combinatie_id = parseInt(combinatieId);
+                registratieData.opstart_aantal = aantal;
+                registratieData.gewicht = null;
+            }
             
             try {
                 let error;
@@ -407,27 +545,70 @@ document.addEventListener('DOMContentLoaded', function() {
                         .from('ophaalregistraties')
                         .insert([registratieData]);
                     error = result.error;
+                    
+                    // Als het een nieuwe opstart is, haal de componenten uit de voorraad
+                    if (!error && type === 'opstart' && registratieData.combinatie_id) {
+                        await verwerkOpstartVoorraad(registratieData.combinatie_id, registratieData.opstart_aantal);
+                    }
                 }
                 
-                if (error) {
-                    alert('Fout bij opslaan: ' + error.message);
-                } else {
-                    registratiePopup.style.display = 'none';
-                    laadRegistraties();
-                }
+                if (error) throw error;
+                
+                registratiePopup.style.display = 'none';
+                laadRegistraties();
+                laadCombinaties(); // Refresh combinatie dropdown
+                
             } catch (err) {
-                alert('Fout: ' + err.message);
+                alert('Fout bij opslaan: ' + err.message);
             }
         });
     }
     
-    if (closeRegistratiePopup) {
-        closeRegistratiePopup.addEventListener('click', () => {
-            registratiePopup.style.display = 'none';
-        });
+    // ===== OPSTART VOORRAAD FUNCTIE =====
+    async function verwerkOpstartVoorraad(combinatieId, aantal) {
+        try {
+            // Haal alle componenten van deze combinatie op
+            const { data: comps, error: compError } = await window.supabase
+                .from('combinatie_componenten')
+                .select('*')
+                .eq('combinatie_id', combinatieId);
+            
+            if (compError) throw compError;
+            
+            if (comps.length === 0) {
+                console.warn('Geen componenten gevonden voor combinatie:', combinatieId);
+                return;
+            }
+            
+            for (const comp of comps) {
+                const { data: compItem } = await window.supabase
+                    .from('stock_items')
+                    .select('aantal, omschrijving')
+                    .eq('id', comp.component_id)
+                    .single();
+                
+                if (compItem) {
+                    const nieuwAantal = compItem.aantal - (comp.aantal * aantal);
+                    await window.supabase
+                        .from('stock_items')
+                        .update({ aantal: Math.max(0, nieuwAantal) })
+                        .eq('id', comp.component_id);
+                    
+                    // Log waarschuwing als voorraad negatief zou worden
+                    if (nieuwAantal < 0) {
+                        console.warn(`Waarschuwing: ${compItem.omschrijving} heeft onvoldoende voorraad!`);
+                    }
+                }
+            }
+            
+            console.log(`Opstart voorraad verwerkt: ${aantal}x combinatie ${combinatieId}`);
+            
+        } catch (err) {
+            console.error('Fout bij verwerken opstart voorraad:', err);
+        }
     }
     
-    // Filters
+    // ===== FILTERS =====
     if (filterBtn) {
         filterBtn.addEventListener('click', laadRegistraties);
     }
@@ -437,11 +618,11 @@ document.addEventListener('DOMContentLoaded', function() {
             searchZiekenhuis.value = '';
             filterDatumVanaf.value = '';
             filterDatumTot.value = '';
+            typeFilter.value = 'alles';
             laadRegistraties();
         });
     }
     
-    // Enter toets voor zoeken
     if (searchZiekenhuis) {
         searchZiekenhuis.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -451,9 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     window.addEventListener('click', (e) => {
-        if (e.target === registratiePopup) {
-            registratiePopup.style.display = 'none';
-        }
+        if (e.target === registratiePopup) registratiePopup.style.display = 'none';
     });
     
     function escapeHtml(text) {
@@ -465,5 +644,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialiseer
     laadRegistraties();
+    laadCombinaties();
     
 });
