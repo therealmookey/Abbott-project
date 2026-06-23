@@ -1,0 +1,2 @@
+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
+localStorage.setItem('openrouter_key', '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');
