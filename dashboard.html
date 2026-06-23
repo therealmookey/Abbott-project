@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Dashboard - Abbott</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -13,6 +13,15 @@
         <div class="dashboard-header">
             <h1>Welkom, <span id="userEmail"></span>!</h1>
             <p>Beheer hier de adressen en ophalingen/afhalingen</p>
+        </div>
+        
+        <!-- Ophaling Analyse -->
+        <div class="analyse-section">
+            <h2>📊 Ophaling Voorspelling</h2>
+            <p>Ziekenhuizen die binnen 5 dagen een ophaling nodig hebben:</p>
+            <div id="analyseLijst" class="analyse-lijst">
+                <p>Laden...</p>
+            </div>
         </div>
         
         <div class="dashboard-grid">
