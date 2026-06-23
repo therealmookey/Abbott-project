@@ -1,5 +1,5 @@
 /* ============================================================
-   ABBOTT PROJECT - COMPLETE STIJLGIDS
+   ABBOTT PROJECT - COMPLETE STIJLGIDS (OPGESCHOOND)
    ============================================================ */
 
 /* ===== 1. ALGEMENE STIJLEN ===== */
@@ -26,7 +26,6 @@ a {
     text-decoration: none;
     color: #2c7da0;
 }
-
 a:hover {
     text-decoration: underline;
 }
@@ -43,7 +42,6 @@ a:hover {
     display: inline-block;
     text-align: center;
 }
-
 .btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -88,8 +86,30 @@ a:hover {
     font-size: 1rem;
 }
 
+.ai-optimize-btn {
+    background: #6f42c1;
+    color: white;
+}
+.ai-optimize-btn:hover {
+    background: #5a32a3;
+}
+.ai-optimize-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pdf-dag-btn {
+    background-color: #dc3545;
+    color: white;
+}
+.pdf-dag-btn:hover {
+    background-color: #c82333;
+}
+
 /* ===== 3. FORMULIEREN ===== */
-input, select, textarea {
+input,
+select,
+textarea {
     font-family: inherit;
     font-size: 1rem;
 }
@@ -111,13 +131,12 @@ textarea {
     transition: border-color 0.2s, box-shadow 0.2s;
     background: white;
 }
-
 input:focus,
 select:focus,
 textarea:focus {
     outline: none;
     border-color: #2c7da0;
-    box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
+    box-shadow: 0 0 0 3px rgba(44, 125, 160, 0.1);
 }
 
 textarea {
@@ -148,14 +167,12 @@ label {
     border-radius: 8px;
     display: none;
 }
-
 .message.success {
     display: block;
     background-color: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
 }
-
 .message.error {
     display: block;
     background-color: #f8d7da;
@@ -171,27 +188,23 @@ label {
     align-items: center;
     justify-content: center;
 }
-
 .login-container {
     width: 100%;
     max-width: 450px;
     padding: 1rem;
 }
-
 .login-box {
     background: white;
     border-radius: 16px;
     padding: 2rem;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
-
 .login-box h1 {
     text-align: center;
     color: #2c7da0;
     margin-bottom: 0.5rem;
 }
-
-.login-box > p {
+.login-box>p {
     text-align: center;
     color: #666;
     margin-bottom: 2rem;
@@ -203,7 +216,6 @@ label {
     margin-bottom: 2rem;
     border-bottom: 2px solid #eee;
 }
-
 .tab-btn {
     flex: 1;
     background: none;
@@ -215,14 +227,12 @@ label {
     transition: all 0.3s;
     border-radius: 8px 8px 0 0;
 }
-
 .tab-btn.active {
     color: #2c7da0;
     border-bottom: 2px solid #2c7da0;
     margin-bottom: -2px;
     font-weight: 600;
 }
-
 .tab-btn:hover {
     background-color: #f8f9fa;
 }
@@ -230,11 +240,9 @@ label {
 .login-form {
     display: none;
 }
-
 .login-form.active {
     display: block;
 }
-
 .login-form input {
     width: 100%;
     padding: 12px;
@@ -249,7 +257,6 @@ label {
     text-align: center;
     margin-top: 1rem;
     color: #2c7da0;
-    text-decoration: none;
     font-size: 0.9rem;
 }
 
@@ -258,9 +265,8 @@ label {
     background-color: #2c7da0;
     color: white;
     padding: 1rem 2rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
-
 .nav-container {
     max-width: 1400px;
     margin: 0 auto;
@@ -270,14 +276,11 @@ label {
     flex-wrap: wrap;
     gap: 1rem;
 }
-
 .nav-logo {
     color: white;
-    text-decoration: none;
     font-size: 1.5rem;
     font-weight: bold;
 }
-
 .nav-logo:hover {
     text-decoration: none;
     color: #e0f0f8;
@@ -289,15 +292,12 @@ label {
     gap: 1rem;
     flex-wrap: wrap;
 }
-
 .nav-links a {
     color: white;
-    text-decoration: none;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     transition: background 0.3s;
 }
-
 .nav-links a:hover {
     background-color: #1f5e7e;
     text-decoration: none;
@@ -313,7 +313,6 @@ label {
     font-size: 1rem;
     transition: background 0.3s;
 }
-
 .nav-logout:hover {
     background-color: #c82333;
 }
@@ -326,7 +325,6 @@ label {
 .dashboard-header {
     margin-bottom: 2rem;
 }
-
 .dashboard-header h1 {
     color: #2c7da0;
     margin-bottom: 0.5rem;
@@ -337,25 +335,21 @@ label {
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2rem;
 }
-
 .dashboard-card {
     background: white;
     border-radius: 16px;
     padding: 2rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s, box-shadow 0.3s;
 }
-
 .dashboard-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
-
 .dashboard-card h2 {
     color: #2c7da0;
     margin-bottom: 1rem;
 }
-
 .dashboard-card p {
     color: #666;
     margin-bottom: 1.5rem;
@@ -366,14 +360,26 @@ label {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
     flex-wrap: wrap;
     gap: 1rem;
+    margin-bottom: 1.5rem;
 }
-
 .page-header h1 {
     color: #2c7da0;
     font-size: 1.75rem;
+}
+
+.page-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.page-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .header-buttons {
@@ -389,16 +395,14 @@ label {
     border-radius: 12px;
     padding: 1.25rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
-
 .search-bar {
     display: flex;
     gap: 10px;
     align-items: center;
     flex-wrap: wrap;
 }
-
 .search-input {
     flex: 1;
     padding: 12px 16px;
@@ -408,13 +412,11 @@ label {
     transition: border-color 0.2s, box-shadow 0.2s;
     min-width: 200px;
 }
-
 .search-input:focus {
     outline: none;
     border-color: #2c7da0;
-    box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
+    box-shadow: 0 0 0 3px rgba(44, 125, 160, 0.1);
 }
-
 .search-info {
     margin-top: 10px;
     font-size: 0.85rem;
@@ -426,7 +428,7 @@ label {
     overflow-x: auto;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 table {
@@ -434,7 +436,6 @@ table {
     border-collapse: collapse;
     min-width: 600px;
 }
-
 thead th {
     background-color: #f8f9fa;
     color: #495057;
@@ -446,18 +447,15 @@ thead th {
     letter-spacing: 0.5px;
     border-bottom: 2px solid #e9ecef;
 }
-
 tbody td {
     padding: 14px 16px;
     border-bottom: 1px solid #e9ecef;
     vertical-align: top;
     line-height: 1.5;
 }
-
 tbody tr:nth-child(even) {
     background-color: #f8f9fa;
 }
-
 tbody tr:hover {
     background-color: #e8f4f8;
     transition: background 0.2s;
@@ -468,7 +466,7 @@ tbody tr:hover {
     background: white;
     border-radius: 12px;
     overflow-x: auto;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .adres-buttons {
@@ -476,7 +474,6 @@ tbody tr:hover {
     gap: 8px;
     flex-wrap: nowrap;
 }
-
 .adres-buttons .btn {
     padding: 6px 12px;
     font-size: 0.75rem;
@@ -486,14 +483,11 @@ tbody tr:hover {
 .telefoon-cell {
     font-size: 0.9rem;
 }
-
 .telefoon-link {
     color: #2c7da0;
-    text-decoration: none;
     font-weight: 500;
     transition: color 0.2s;
 }
-
 .telefoon-link:hover {
     color: #1a5a7a;
     text-decoration: underline;
@@ -501,11 +495,9 @@ tbody tr:hover {
 
 .email-link {
     color: #2c7da0;
-    text-decoration: none;
     font-size: 0.85rem;
     transition: color 0.2s;
 }
-
 .email-link:hover {
     color: #1a5a7a;
     text-decoration: underline;
@@ -515,7 +507,6 @@ tbody tr:hover {
     font-size: 0.9rem;
     line-height: 1.4;
 }
-
 .extra-info-cell {
     color: #6c757d;
     font-size: 0.85rem;
@@ -536,11 +527,10 @@ tbody tr:hover {
     resize: vertical;
     box-sizing: border-box;
 }
-
 .extra-info:focus {
     outline: none;
     border-color: #2c7da0;
-    box-shadow: 0 0 0 2px rgba(44,125,160,0.2);
+    box-shadow: 0 0 0 2px rgba(44, 125, 160, 0.2);
 }
 
 /* ===== 12. ADMIN PANEL ===== */
@@ -553,7 +543,6 @@ tbody tr:hover {
     border-bottom: 2px solid #e9ecef;
     flex-wrap: wrap;
 }
-
 .admin-tabs .tab-btn,
 .planning-tabs .tab-btn,
 .module-tabs .tab-btn {
@@ -566,14 +555,12 @@ tbody tr:hover {
     border-radius: 8px 8px 0 0;
     transition: all 0.2s;
 }
-
 .admin-tabs .tab-btn:hover,
 .planning-tabs .tab-btn:hover,
 .module-tabs .tab-btn:hover {
     background-color: #f8f9fa;
     color: #2c7da0;
 }
-
 .admin-tabs .tab-btn.active,
 .planning-tabs .tab-btn.active,
 .module-tabs .tab-btn.active {
@@ -587,7 +574,6 @@ tbody tr:hover {
 .module-tab {
     display: none;
 }
-
 .admin-tab.active,
 .planning-tab.active,
 .module-tab.active {
@@ -598,7 +584,7 @@ tbody tr:hover {
     background: white;
     border-radius: 12px;
     overflow-x: auto;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     padding: 1rem;
 }
 
@@ -607,7 +593,6 @@ tbody tr:hover {
     gap: 8px;
     flex-wrap: wrap;
 }
-
 .admin-buttons .btn {
     padding: 6px 12px;
     font-size: 0.75rem;
@@ -617,20 +602,17 @@ tbody tr:hover {
     background: white;
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
-
 .instelling-item {
     margin-bottom: 1.5rem;
 }
-
 .instelling-item label {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
     color: #2c7da0;
 }
-
 .instelling-item p {
     margin: 0.25rem 0;
 }
@@ -647,12 +629,11 @@ hr {
     flex-direction: column;
     gap: 1rem;
 }
-
 .planning-item {
     background: white;
     border-radius: 12px;
     padding: 1.25rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -660,33 +641,27 @@ hr {
     transition: box-shadow 0.2s;
     gap: 1rem;
 }
-
 .planning-item:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
-
 .planning-info {
     flex: 1;
     min-width: 250px;
 }
-
 .planning-info h4 {
     color: #2c7da0;
     margin-bottom: 0.5rem;
 }
-
 .planning-info p {
     margin: 0.25rem 0;
     color: #555;
 }
-
 .planning-buttons {
     display: flex;
     gap: 0.5rem;
     align-items: center;
     flex-wrap: wrap;
 }
-
 .planning-buttons select {
     padding: 6px 10px;
     border-radius: 6px;
@@ -694,7 +669,6 @@ hr {
     font-size: 0.8rem;
     margin-bottom: 0;
 }
-
 .planning-buttons .btn {
     padding: 6px 12px;
     font-size: 0.75rem;
@@ -708,17 +682,14 @@ hr {
     display: inline-block;
     font-weight: 500;
 }
-
 .status-gepland {
     background-color: #fff3cd;
     color: #856404;
 }
-
 .status-uitgevoerd {
     background-color: #d4edda;
     color: #155724;
 }
-
 .status-geannuleerd {
     background-color: #f8d7da;
     color: #721c24;
@@ -727,29 +698,62 @@ hr {
 /* ===== 15. FILTERS ===== */
 .filter-section {
     background: white;
-    padding: 1.5rem;
+    padding: 1.25rem;
     border-radius: 12px;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.filter-row {
     display: flex;
-    gap: 1rem;
     flex-wrap: wrap;
+    gap: 15px;
     align-items: flex-end;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    width: 100%;
 }
-
-.filter-section select,
-.filter-section input {
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
-    margin-bottom: 0;
+.filter-item {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
     min-width: 150px;
+    max-width: 250px;
 }
-
-.filter-section label {
-    margin-bottom: 0.25rem;
+.filter-item label {
+    font-size: 0.8rem;
+    color: #495057;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+.filter-item .search-input,
+.filter-item .form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+    transition: border-color 0.2s;
+}
+.filter-item .search-input:focus,
+.filter-item .form-input:focus {
+    outline: none;
+    border-color: #2c7da0;
+    box-shadow: 0 0 0 3px rgba(44, 125, 160, 0.1);
+}
+.filter-item .form-input {
+    min-width: 140px;
+}
+.filter-buttons {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 180px;
+    max-width: 250px;
+}
+.filter-buttons .btn {
+    padding: 8px 20px;
     font-size: 0.85rem;
+    white-space: nowrap;
+    flex: 1;
 }
 
 /* ===== 16. PROFIEL ===== */
@@ -759,17 +763,14 @@ hr {
     padding: 2rem;
     max-width: 600px;
     margin: 0 auto;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
-
 .profiel-info {
     margin: 1.5rem 0;
 }
-
 .profiel-info p {
     margin: 0.75rem 0;
 }
-
 .wachtwoord-form {
     display: flex;
     flex-direction: column;
@@ -785,12 +786,11 @@ hr {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.5);
     align-items: center;
     justify-content: center;
     z-index: 1000;
 }
-
 .popup-content {
     background: white;
     border-radius: 16px;
@@ -800,12 +800,10 @@ hr {
     max-height: 90vh;
     overflow-y: auto;
 }
-
 .popup-content h3 {
     margin-bottom: 1.5rem;
     color: #2c7da0;
 }
-
 .popup-content h4 {
     color: #2c7da0;
     font-size: 0.9rem;
@@ -813,11 +811,9 @@ hr {
     padding-bottom: 0.25rem;
     border-bottom: 1px solid #eee;
 }
-
 .popup-content h4:first-of-type {
     margin-top: 0;
 }
-
 .popup-content input,
 .popup-content select,
 .popup-content textarea {
@@ -828,7 +824,6 @@ hr {
     border-radius: 8px;
     font-size: 1rem;
 }
-
 .popup-content .btn {
     margin: 0;
 }
@@ -837,7 +832,6 @@ hr {
 .whatsapp-popup {
     max-width: 550px;
 }
-
 .whatsapp-popup textarea {
     font-family: monospace;
     font-size: 12px;
@@ -849,14 +843,12 @@ hr {
 .route-bericht h4 {
     margin-top: 0;
 }
-
 .route-actions {
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
     margin-top: 1rem;
 }
-
 .route-actions .btn {
     flex: 1;
     min-width: 120px;
@@ -870,7 +862,6 @@ hr {
     margin-bottom: 1.5rem;
     align-items: flex-end;
 }
-
 .route-date-selector,
 .route-chauffeur-selector {
     display: flex;
@@ -881,7 +872,6 @@ hr {
     padding: 0.75rem 1rem;
     border-radius: 8px;
 }
-
 .route-date-selector label,
 .route-chauffeur-selector label {
     margin: 0;
@@ -891,20 +881,17 @@ hr {
     background: white;
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
-
 .route-header-summary {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid #2c7da0;
 }
-
 .route-header-summary h4 {
     color: #2c7da0;
     margin-bottom: 0.5rem;
 }
-
 .route-header-summary p {
     margin: 0.25rem 0;
     color: #495057;
@@ -915,7 +902,6 @@ hr {
     max-height: 500px;
     overflow-y: auto;
 }
-
 .route-stop {
     display: flex;
     gap: 1rem;
@@ -925,10 +911,9 @@ hr {
     border-radius: 8px;
     transition: transform 0.2s, box-shadow 0.2s;
 }
-
 .route-stop:hover {
     transform: translateX(4px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .stop-number {
@@ -943,16 +928,13 @@ hr {
     font-weight: bold;
     flex-shrink: 0;
 }
-
 .stop-details {
     flex: 1;
 }
-
 .stop-details strong {
     color: #2c7da0;
     font-size: 1rem;
 }
-
 .stop-type {
     display: inline-block;
     background: #e9ecef;
@@ -962,7 +944,6 @@ hr {
     font-weight: 500;
     margin-top: 6px;
 }
-
 .stop-opmerking {
     margin-top: 8px;
     padding: 8px;
@@ -972,7 +953,6 @@ hr {
     color: #0d47a1;
     border-left: 3px solid #2196f3;
 }
-
 .stop-extra-info {
     margin-top: 6px;
     padding: 8px;
@@ -982,7 +962,6 @@ hr {
     color: #6d5d00;
     border-left: 3px solid #ffc107;
 }
-
 .stop-telefoon {
     margin-top: 4px;
     color: #2c7da0;
@@ -997,7 +976,6 @@ hr {
     border-top: 1px solid #e9ecef;
     flex-wrap: wrap;
 }
-
 .route-actions-bottom .btn {
     flex: 1;
     min-width: 150px;
@@ -1011,7 +989,6 @@ hr {
     margin-right: 8px;
     user-select: none;
 }
-
 .drag-handle:active {
     cursor: grabbing;
 }
@@ -1019,21 +996,18 @@ hr {
 .sortable-item {
     transition: all 0.2s ease;
 }
-
 .sortable-ghost {
     opacity: 0.4;
     background: #e8f4f8 !important;
     border: 2px dashed #2c7da0;
 }
-
 .sortable-chosen {
     background: #f0f7fa;
 }
-
 .sortable-drag {
     opacity: 0.8;
     transform: scale(1.02);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .planning-header {
@@ -1043,7 +1017,6 @@ hr {
     flex-wrap: wrap;
     margin-bottom: 6px;
 }
-
 .stop-number-badge {
     display: inline-block;
     background: #2c7da0;
@@ -1055,7 +1028,6 @@ hr {
     min-width: 28px;
     text-align: center;
 }
-
 .route-order-info {
     background: #e8f4f8;
     padding: 10px 16px;
@@ -1063,12 +1035,10 @@ hr {
     margin-bottom: 16px;
     border-left: 4px solid #2c7da0;
 }
-
 .route-order-info p {
     margin: 0;
     color: #1f5e7e;
 }
-
 #saveRouteOrderBtn {
     display: none;
 }
@@ -1080,13 +1050,11 @@ hr {
     gap: 0.75rem;
     margin: 1rem 0;
 }
-
 .module-checkbox-item {
     padding: 0.5rem;
     background: #f8f9fa;
     border-radius: 8px;
 }
-
 .module-checkbox-item label {
     display: flex;
     align-items: center;
@@ -1094,7 +1062,6 @@ hr {
     cursor: pointer;
     margin: 0;
 }
-
 .module-checkbox-item input[type="checkbox"] {
     width: 18px;
     height: 18px;
@@ -1102,11 +1069,247 @@ hr {
     margin: 0;
 }
 
-/* ===== 22. RESPONSIVE ===== */
+/* ===== 22. DATUM SELECTOR ===== */
+.date-selector-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.date-controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.date-controls .btn {
+    white-space: nowrap;
+}
+.date-input {
+    max-width: 200px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin: 0;
+}
+.date-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+#dateDisplay {
+    font-weight: 600;
+    color: #2c7da0;
+    font-size: 1.1rem;
+}
+.route-count-badge {
+    background: #e9ecef;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+/* ===== 23. DAG ACTIES ===== */
+.day-actions {
+    margin-top: 1.5rem;
+}
+.day-actions-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+.day-actions-buttons .btn {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* ===== 24. DATUM HEADER ===== */
+.datum-header {
+    background: #e8f4f8;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 16px 0 8px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    border-left: 4px solid #2c7da0;
+}
+.datum-header:first-of-type {
+    margin-top: 0;
+}
+.datum-header-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.datum-dag {
+    font-weight: 700;
+    color: #2c7da0;
+    font-size: 1.1rem;
+}
+.datum-datum {
+    font-weight: 600;
+    color: #333;
+    font-size: 1rem;
+}
+.datum-count {
+    background: #2c7da0;
+    color: white;
+    padding: 2px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+.datum-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.datum-actions .btn {
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+/* ===== 25. CHAUFFEUR SELECTOR ===== */
+.chauffeur-selector-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.chauffeur-selector-wrapper label {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #2c7da0;
+    font-weight: 600;
+}
+.chauffeur-select {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    background: white;
+    min-width: 120px;
+    margin: 0;
+}
+.chauffeur-select:focus {
+    outline: none;
+    border-color: #2c7da0;
+}
+
+/* ===== 26. PDF PRINT STIJLEN ===== */
+@media print {
+    .print-hide {
+        display: none !important;
+    }
+
+    .popup {
+        position: relative;
+        display: block !important;
+        background: white;
+    }
+    .popup-content {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+    }
+    .route-popup {
+        max-height: none;
+        overflow: visible;
+    }
+    .route-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    body {
+        background: white;
+        font-size: 11pt !important;
+    }
+    .container {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .main-nav,
+    .btn,
+    .search-section,
+    .filter-section,
+    .page-header .header-buttons,
+    .page-header .page-header-right,
+    .datum-actions .btn,
+    .datum-actions .chauffeur-selector-wrapper,
+    .datum-count,
+    .route-actions-bottom,
+    .day-actions,
+    #planningPopup,
+    #whatsappPopup {
+        display: none !important;
+    }
+
+    .planning-item {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+    .planning-item .planning-buttons,
+    .planning-item .drag-handle {
+        display: none !important;
+    }
+
+    .datum-header {
+        background: #f0f0f0 !important;
+        border-left: 4px solid #2c7da0 !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+    }
+    .datum-header .datum-actions {
+        display: none !important;
+    }
+
+    .planning-status {
+        font-size: 0.7rem !important;
+        padding: 2px 8px !important;
+    }
+    .stop-number-badge {
+        background: #2c7da0 !important;
+        color: white !important;
+    }
+    .adres-extra-info {
+        background: #fff8e1 !important;
+        padding: 4px 8px !important;
+        border-radius: 4px !important;
+        font-size: 0.8rem !important;
+    }
+
+    .adressen-tabel table {
+        font-size: 10pt;
+    }
+}
+
+/* ===== 27. RESPONSIVE ===== */
 @media (max-width: 1024px) {
     .container {
         padding: 1.5rem;
         max-width: 100%;
+    }
+    .filter-item {
+        min-width: 140px;
+        max-width: 200px;
     }
 }
 
@@ -1120,12 +1323,10 @@ hr {
         align-items: center;
         gap: 0.75rem;
     }
-
     .nav-links {
         justify-content: center;
         gap: 0.5rem;
     }
-
     .nav-links a,
     .nav-links .nav-logout {
         padding: 0.4rem 0.8rem;
@@ -1141,19 +1342,30 @@ hr {
         text-align: left;
         gap: 0.75rem;
     }
-
     .planning-buttons {
         width: 100%;
         justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    .planning-item .planning-buttons select,
+    .planning-item .planning-buttons .btn {
+        flex: 1;
+        min-width: 80px;
     }
 
     .page-header {
         flex-direction: column;
         text-align: center;
+        align-items: stretch;
     }
-
     .page-header .header-buttons {
         width: 100%;
+        justify-content: center;
+    }
+    .page-header-left {
+        justify-content: center;
+    }
+    .page-header-right {
         justify-content: center;
     }
 
@@ -1161,7 +1373,6 @@ hr {
         flex-direction: column;
         width: 100%;
     }
-
     .search-bar .btn,
     .search-bar .search-input {
         width: 100%;
@@ -1171,11 +1382,24 @@ hr {
         flex-direction: column;
         align-items: stretch;
     }
-
-    .filter-section select,
-    .filter-section input,
-    .filter-section .btn {
-        width: 100%;
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-item {
+        min-width: 100%;
+        max-width: 100%;
+    }
+    .filter-item .form-input {
+        min-width: 100%;
+    }
+    .filter-buttons {
+        flex-direction: row;
+        min-width: 100%;
+        max-width: 100%;
+    }
+    .filter-buttons .btn {
+        flex: 1;
     }
 
     .admin-tabs .tab-btn,
@@ -1189,13 +1413,11 @@ hr {
         flex-direction: column;
         align-items: stretch;
     }
-
     .route-date-selector,
     .route-chauffeur-selector {
         flex-direction: column;
         align-items: stretch;
     }
-
     .route-date-selector .btn,
     .route-chauffeur-selector .btn {
         width: 100%;
@@ -1204,7 +1426,6 @@ hr {
     .route-stop {
         flex-direction: column;
     }
-
     .stop-number {
         align-self: flex-start;
     }
@@ -1212,15 +1433,12 @@ hr {
     .route-actions-bottom {
         flex-direction: column;
     }
-
     .route-actions-bottom .btn {
         width: 100%;
     }
-
     .route-actions {
         flex-direction: column;
     }
-
     .route-actions .btn {
         width: 100%;
     }
@@ -1234,7 +1452,6 @@ hr {
         flex-direction: column;
         width: 100%;
     }
-
     .header-buttons .btn {
         width: 100%;
     }
@@ -1243,7 +1460,6 @@ hr {
         flex-direction: column;
         align-items: flex-start;
     }
-
     .adres-buttons .btn {
         width: 100%;
     }
@@ -1256,15 +1472,74 @@ hr {
         flex-wrap: wrap;
     }
 
-    .planning-item .planning-buttons {
-        justify-content: flex-start;
-        flex-wrap: wrap;
+    .date-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .date-controls .btn {
+        width: 100%;
+    }
+    .date-input {
+        max-width: 100%;
+        width: 100%;
+    }
+    .date-info {
+        flex-direction: column;
+        text-align: center;
     }
 
-    .planning-item .planning-buttons select,
-    .planning-item .planning-buttons .btn {
+    .day-actions-buttons {
+        flex-direction: column;
+    }
+    .day-actions-buttons .btn {
+        width: 100%;
+    }
+
+    .datum-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        padding: 12px;
+    }
+    .datum-header-content {
+        justify-content: center;
+    }
+    .datum-actions {
+        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+    .datum-actions .btn {
         flex: 1;
-        min-width: 80px;
+        min-width: 120px;
+        width: 100%;
+    }
+
+    .chauffeur-selector-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+    .chauffeur-selector-wrapper label {
+        text-align: center;
+    }
+    .chauffeur-select {
+        width: 100%;
+        padding: 6px 10px;
+    }
+
+    .ai-optimize-btn,
+    .pdf-dag-btn {
+        width: 100%;
+    }
+
+    .page-header-right {
+        flex-direction: column;
+        width: 100%;
+    }
+    .page-header-right .btn {
+        width: 100%;
     }
 }
 
@@ -1272,7 +1547,6 @@ hr {
     .login-box {
         padding: 1.25rem;
     }
-
     .login-box h1 {
         font-size: 1.5rem;
     }
@@ -1292,7 +1566,6 @@ hr {
         padding: 0.3rem 0.6rem;
         font-size: 0.8rem;
     }
-
     .nav-logo {
         font-size: 1.2rem;
     }
@@ -1304,7 +1577,6 @@ hr {
     .route-stop {
         padding: 0.75rem;
     }
-
     .stop-number {
         width: 28px;
         height: 28px;
@@ -1314,515 +1586,13 @@ hr {
     .planning-item {
         padding: 0.75rem;
     }
-}
 
-/* ===== 23. PRINT STIJLEN ===== */
-@media print {
-    .print-hide {
-        display: none !important;
-    }
-
-    .popup {
-        position: relative;
-        display: block !important;
-        background: white;
-    }
-
-    .popup-content {
-        box-shadow: none;
-        padding: 0;
-        max-width: 100%;
-    }
-
-    .route-popup {
-        max-height: none;
-        overflow: visible;
-    }
-
-    .route-item {
-        break-inside: avoid;
-        page-break-inside: avoid;
-    }
-
-    body {
-        background: white;
-    }
-
-    .container {
-        padding: 0;
-    }
-
-    .adressen-tabel table {
-        font-size: 10pt;
-    }
-
-    .btn,
-    .search-section,
-    .header-buttons,
-    .nav-links,
-    .main-nav {
-        display: none !important;
-    }
-}
-/* ===== DATUM SELECTOR ===== */
-.date-selector-section {
-    background: white;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-
-.date-controls {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.date-controls .btn {
-    white-space: nowrap;
-}
-
-.date-input {
-    max-width: 200px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 1rem;
-    margin: 0;
-}
-
-.date-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #e9ecef;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-#dateDisplay {
-    font-weight: 600;
-    color: #2c7da0;
-    font-size: 1.1rem;
-}
-
-.route-count-badge {
-    background: #e9ecef;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    color: #495057;
-}
-
-/* ===== DAG ACTIES ===== */
-.day-actions {
-    margin-top: 1.5rem;
-}
-
-.day-actions-buttons {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-top: 1rem;
-}
-
-.day-actions-buttons .btn {
-    flex: 1;
-    min-width: 200px;
-}
-
-/* ===== RESPONSIVE DATE SELECTOR ===== */
-@media (max-width: 768px) {
-    .date-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .date-controls .btn {
-        width: 100%;
-    }
-    
-    .date-input {
-        max-width: 100%;
-        width: 100%;
-    }
-    
-    .date-info {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .day-actions-buttons {
-        flex-direction: column;
-    }
-    
-    .day-actions-buttons .btn {
-        width: 100%;
-    }
-}
-/* ===== DATUM HEADER ===== */
-.datum-header {
-    background: #e8f4f8;
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin: 16px 0 8px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    border-left: 4px solid #2c7da0;
-}
-
-.datum-header:first-of-type {
-    margin-top: 0;
-}
-
-.datum-header-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.datum-dag {
-    font-weight: 700;
-    color: #2c7da0;
-    font-size: 1.1rem;
-}
-
-.datum-datum {
-    font-weight: 600;
-    color: #333;
-    font-size: 1rem;
-}
-
-.datum-count {
-    background: #2c7da0;
-    color: white;
-    padding: 2px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 500;
-}
-
-.datum-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.datum-actions .btn {
-    padding: 4px 12px;
-    font-size: 0.75rem;
-    white-space: nowrap;
-}
-
-/* ===== RESPONSIVE DATUM HEADER ===== */
-@media (max-width: 768px) {
-    .datum-header {
-        flex-direction: column;
-        align-items: stretch;
-        text-align: center;
-        padding: 12px;
-    }
-    
-    .datum-header-content {
-        justify-content: center;
-    }
-    
-    .datum-actions {
-        justify-content: center;
-    }
-    
-    .datum-actions .btn {
-        flex: 1;
-        min-width: 120px;
-    }
-}
-/* ===== CHAUFFEUR SELECTOR IN DATUM HEADER ===== */
-.chauffeur-selector-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.chauffeur-selector-wrapper label {
-    margin: 0;
-    font-size: 0.8rem;
-    color: #2c7da0;
-    font-weight: 600;
-}
-
-.chauffeur-select {
-    padding: 4px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    background: white;
-    min-width: 120px;
-    margin: 0;
-}
-
-.chauffeur-select:focus {
-    outline: none;
-    border-color: #2c7da0;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-    .datum-actions {
-        flex-direction: column;
-        align-items: stretch;
-        width: 100%;
-    }
-    
-    .datum-actions .btn {
-        width: 100%;
-    }
-    
-    .chauffeur-selector-wrapper {
-        flex-direction: column;
-        align-items: stretch;
-        width: 100%;
-    }
-    
-    .chauffeur-selector-wrapper label {
-        text-align: center;
-    }
-    
-    .chauffeur-select {
-        width: 100%;
-        padding: 6px 10px;
-    }
-}
-/* ===== AI OPTIMALISEER KNO ===== */
-.ai-optimize-btn {
-    background: #6f42c1;
-    color: white;
-}
-
-.ai-optimize-btn:hover {
-    background: #5a32a3;
-}
-
-.ai-optimize-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-    .ai-optimize-btn {
-        width: 100%;
-    }
-}
-/* ===== PDF KNO ===== */
-.pdf-dag-btn {
-    background-color: #dc3545;
-    color: white;
-}
-
-.pdf-dag-btn:hover {
-    background-color: #c82333;
-}
-
-/* ===== PDF PRINT STIJLEN ===== */
-@media print {
-    /* Verberg navigatie en knoppen bij printen */
-    .main-nav,
-    .btn,
-    .search-section,
-    .filter-section,
-    .page-header .header-buttons,
-    .datum-actions .btn,
-    .datum-actions .chauffeur-selector-wrapper,
-    .datum-count,
-    .route-actions-bottom,
-    .day-actions,
-    #planningPopup,
-    #whatsappPopup {
-        display: none !important;
-    }
-    
-    /* Toon alleen de planning items */
-    .container {
-        padding: 0 !important;
-        max-width: 100% !important;
-    }
-    
-    .planning-item {
-        box-shadow: none !important;
-        border: 1px solid #ddd !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-    
-    .planning-item .planning-buttons {
-        display: none !important;
-    }
-    
-    .planning-item .drag-handle {
-        display: none !important;
-    }
-    
-    .datum-header {
-        background: #f0f0f0 !important;
-        border-left: 4px solid #2c7da0 !important;
-        page-break-after: avoid !important;
-        break-after: avoid !important;
-    }
-    
-    .datum-header .datum-actions {
-        display: none !important;
-    }
-    
-    .planning-status {
-        font-size: 0.7rem !important;
-        padding: 2px 8px !important;
-    }
-    
-    .stop-number-badge {
-        background: #2c7da0 !important;
-        color: white !important;
-    }
-    
-    .adres-extra-info {
-        background: #fff8e1 !important;
-        padding: 4px 8px !important;
-        border-radius: 4px !important;
-        font-size: 0.8rem !important;
-    }
-    
-    body {
-        background: white !important;
-        font-size: 11pt !important;
-    }
-}
-
-/* ===== RESPONSIVE PDF KNO ===== */
-@media (max-width: 768px) {
-    .pdf-dag-btn {
-        width: 100%;
-    }
-}
-/* ===== FILTER RIJ - NAAST ELKAAR ===== */
-.filter-section {
-    background: white;
-    padding: 1.25rem;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-
-.filter-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    align-items: flex-end;
-    width: 100%;
-}
-
-.filter-item {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 150px;
-    max-width: 250px;
-}
-
-.filter-item label {
-    font-size: 0.8rem;
-    color: #495057;
-    margin-bottom: 4px;
-    font-weight: 500;
-}
-
-.filter-item .search-input,
-.filter-item .form-input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    background: white;
-    transition: border-color 0.2s;
-}
-
-.filter-item .search-input:focus,
-.filter-item .form-input:focus {
-    outline: none;
-    border-color: #2c7da0;
-    box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
-}
-
-.filter-item .form-input {
-    min-width: 140px;
-}
-
-.filter-buttons {
-    flex-direction: row;
-    align-items: flex-end;
-    gap: 8px;
-    min-width: 180px;
-    max-width: 250px;
-}
-
-.filter-buttons .btn {
-    padding: 8px 20px;
-    font-size: 0.85rem;
-    white-space: nowrap;
-    flex: 1;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1024px) {
-    .filter-item {
-        min-width: 140px;
-        max-width: 200px;
-    }
-}
-
-@media (max-width: 768px) {
-    .filter-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .filter-item {
-        min-width: 100%;
-        max-width: 100%;
-    }
-    
-    .filter-item .form-input {
-        min-width: 100%;
-    }
-    
-    .filter-buttons {
-        flex-direction: row;
-        min-width: 100%;
-        max-width: 100%;
-    }
-    
-    .filter-buttons .btn {
-        flex: 1;
-    }
-}
-
-@media (max-width: 480px) {
     .filter-section {
         padding: 0.75rem;
     }
-    
     .filter-buttons {
         flex-direction: column;
     }
-    
     .filter-buttons .btn {
         width: 100%;
     }

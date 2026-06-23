@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterDatumTot = document.getElementById('filterDatumTot');
     const filterBtn = document.getElementById('filterBtn');
     const resetFilterBtn = document.getElementById('resetFilterBtn');
+    const exportExcelBtn = document.getElementById('exportExcelBtn');
+    const exportPdfBtn = document.getElementById('exportPdfBtn');
     
     let currentRegistratieId = null;
     let adressen = [];
@@ -100,10 +102,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Tabel weergave (Excel-achtige lijst)
+        // Tabel weergave
         let html = `
             <div style="overflow-x: auto;">
-            <table style="width:100%; border-collapse: collapse;">
+            <table style="width:100%; border-collapse: collapse;" id="registratiesTabel">
                 <thead>
                     <tr style="background-color: #2c7da0; color: white;">
                         <th style="padding: 10px; text-align: left;">#</th>
@@ -118,9 +120,11 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         let teller = 1;
+        let totaalGewicht = 0;
         for (const r of filteredData) {
             const datum = new Date(r.registratiedatum + 'T00:00:00');
             const datumStr = datum.toLocaleDateString('nl-NL');
+            totaalGewicht += r.gewicht || 0;
             
             html += `
                 <tr style="border-bottom: 1px solid #e9ecef;">
@@ -142,9 +146,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </tbody>
             </table>
             </div>
-            <div style="margin-top: 10px; color: #6c757d; font-size: 0.9rem;">
-                <strong>Totaal:</strong> ${filteredData.length} registraties | 
-                <strong>Totaal gewicht:</strong> ${filteredData.reduce((sum, r) => sum + (r.gewicht || 0), 0).toFixed(1)} kg
+            <div style="margin-top: 10px; color: #6c757d; font-size: 0.9rem; display: flex; flex-wrap: wrap; gap: 20px;">
+                <span><strong>Totaal registraties:</strong> ${filteredData.length}</span>
+                <span><strong>Totaal gewicht:</strong> ${totaalGewicht.toFixed(1)} kg</span>
+                <span><strong>Ziekenhuizen:</strong> ${new Set(filteredData.map(r => r.ziekenhuis?.id)).size}</span>
             </div>
         `;
         
@@ -155,6 +160,153 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         document.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', () => verwijderRegistratie(btn.dataset.id));
+        });
+    }
+    
+    // ===== EXPORT FUNCTIES =====
+    
+    function getExportData() {
+        const data = [];
+        const rows = document.querySelectorAll('#registratiesTabel tbody tr');
+        rows.forEach(row => {
+            const cols = row.querySelectorAll('td');
+            if (cols.length >= 5) {
+                data.push({
+                    nummer: cols[0].textContent.trim(),
+                    ziekenhuis: cols[1].textContent.trim(),
+                    datum: cols[2].textContent.trim(),
+                    gewicht: parseFloat(cols[3].textContent.trim()) || 0,
+                    opmerkingen: cols[4].textContent.trim()
+                });
+            }
+        });
+        return data;
+    }
+    
+    // Export naar Excel
+    if (exportExcelBtn) {
+        exportExcelBtn.addEventListener('click', () => {
+            const data = getExportData();
+            if (data.length === 0) {
+                alert('Geen data om te exporteren.');
+                return;
+            }
+            
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, 'Registraties');
+            
+            // Kolombreedtes instellen
+            ws['!cols'] = [
+                { wch: 6 },   // #
+                { wch: 30 },  // Ziekenhuis
+                { wch: 15 },  // Datum
+                { wch: 15 },  // Gewicht
+                { wch: 30 }   // Opmerkingen
+            ];
+            
+            const fileName = `Ophaalregistraties_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        });
+    }
+    
+    // Export naar PDF
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', () => {
+            const data = getExportData();
+            if (data.length === 0) {
+                alert('Geen data om te exporteren.');
+                return;
+            }
+            
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+            if (!printWindow) {
+                alert('Popup geblokkeerd! Sta popups toe voor deze site.');
+                return;
+            }
+            
+            let totaalGewicht = data.reduce((sum, r) => sum + r.gewicht, 0);
+            const datum = new Date().toLocaleDateString('nl-NL');
+            
+            let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Ophaalregistraties</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; background: white; }
+                    .header { text-align: center; border-bottom: 3px solid #2c7da0; padding-bottom: 15px; margin-bottom: 20px; }
+                    .header h1 { color: #2c7da0; font-size: 24px; }
+                    .header p { color: #6c757d; font-size: 14px; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                    th { background-color: #2c7da0; color: white; padding: 8px 10px; text-align: left; }
+                    td { padding: 6px 10px; border-bottom: 1px solid #e9ecef; }
+                    tr:nth-child(even) { background-color: #f8f9fa; }
+                    .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e9ecef; text-align: center; font-size: 11px; color: #6c757d; }
+                    .summary { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: flex; gap: 30px; flex-wrap: wrap; }
+                    .summary-item { font-size: 13px; }
+                    .summary-item strong { color: #2c7da0; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>📋 Ophaalregistraties</h1>
+                    <p>Gegenereerd op ${datum}</p>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Ziekenhuis</th>
+                            <th>Datum</th>
+                            <th style="text-align: right;">Gewicht (kg)</th>
+                            <th>Opmerkingen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.forEach((r, index) => {
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${escapeHtml(r.ziekenhuis)}</td>
+                        <td>${r.datum}</td>
+                        <td style="text-align: right;">${r.gewicht.toFixed(1)}</td>
+                        <td>${escapeHtml(r.opmerkingen || '-')}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+                
+                <div class="summary">
+                    <span class="summary-item"><strong>📋 Totaal registraties:</strong> ${data.length}</span>
+                    <span class="summary-item"><strong>⚖️ Totaal gewicht:</strong> ${totaalGewicht.toFixed(1)} kg</span>
+                    <span class="summary-item"><strong>🏥 Ziekenhuizen:</strong> ${new Set(data.map(r => r.ziekenhuis)).size}</span>
+                </div>
+                
+                <div class="footer">
+                    Route gegenereerd via Abbott Platform
+                </div>
+            </body>
+            </html>
+            `;
+            
+            printWindow.document.write(html);
+            printWindow.document.close();
+            
+            printWindow.onload = function() {
+                setTimeout(function() {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 500);
+            };
         });
     }
     

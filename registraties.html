@@ -4,37 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ophaalregistraties - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=23">
+    <link rel="stylesheet" href="css/style.css?v=24">
+    <!-- SheetJS voor Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- html2pdf voor PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
     <div id="navigatie-placeholder"></div>
     
     <main class="container">
         <div class="page-header">
-            <h1>📋 Ophaalregistraties</h1>
-            <button id="addRegistratieBtn" class="btn btn-primary">+ Nieuwe registratie</button>
+            <div class="page-header-left">
+                <h1>📋 Ophaalregistraties</h1>
+                <button id="addRegistratieBtn" class="btn btn-primary">+ Nieuwe registratie</button>
+            </div>
+            <div class="page-header-right">
+                <button id="exportExcelBtn" class="btn btn-success">📊 Export Excel</button>
+                <button id="exportPdfBtn" class="btn btn-danger">📄 Export PDF</button>
+            </div>
         </div>
         
-       <!-- Filters -->
-<div class="filter-section">
-    <div class="filter-row">
-        <div class="filter-item">
-            <label>🔍 Ziekenhuis</label>
-            <input type="text" id="searchZiekenhuis" placeholder="Zoeken..." class="search-input">
+        <!-- Filters - boven de lijst -->
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="filter-item">
+                    <label>🔍 Ziekenhuis</label>
+                    <input type="text" id="searchZiekenhuis" placeholder="Zoeken op naam..." class="search-input">
+                </div>
+                <div class="filter-item">
+                    <label>📅 Vanaf</label>
+                    <input type="date" id="filterDatumVanaf" class="form-input">
+                </div>
+                <div class="filter-item">
+                    <label>📅 Tot</label>
+                    <input type="date" id="filterDatumTot" class="form-input">
+                </div>
+                <div class="filter-item filter-buttons">
+                    <button id="filterBtn" class="btn btn-primary">Filter</button>
+                    <button id="resetFilterBtn" class="btn btn-secondary">Reset</button>
+                </div>
+            </div>
         </div>
-        <div class="filter-item">
-            <label>📅 Vanaf</label>
-            <input type="date" id="filterDatumVanaf" class="form-input">
-        </div>
-        <div class="filter-item">
-            <label>📅 Tot</label>
-            <input type="date" id="filterDatumTot" class="form-input">
-        </div>
-        <div class="filter-item filter-buttons">
-            <button id="filterBtn" class="btn btn-primary">Filter</button>
-            <button id="resetFilterBtn" class="btn btn-secondary">Reset</button>
-        </div>
-    </div>
         
         <!-- Registraties lijst -->
         <div id="registratiesLijst" class="admin-tabel">
