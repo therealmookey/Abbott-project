@@ -1597,3 +1597,72 @@ hr {
         width: 100%;
     }
 }
+/* ===== STOCK MANAGEMENT ===== */
+.stock-alerts {
+    margin-bottom: 1.5rem;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-list {
+    margin: 8px 0 0 20px;
+    padding: 0;
+}
+
+.alert-list li {
+    margin-bottom: 4px;
+}
+
+.stock-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.status-voldoende {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-laag {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-op {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* ===== MUTATIE POPUP ===== */
+#mutatiePopup .popup-content {
+    max-width: 450px;
+}
+
+#mutatiePopup p {
+    margin: 0.5rem 0;
+}
