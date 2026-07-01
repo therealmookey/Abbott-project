@@ -970,26 +970,25 @@ const scrollBtn = document.getElementById('scrollBtn');
             return;
         }
 
-        scrollBtn.style.display = 'flex';
-
         const isAtTop = scrollY < 50;
         const isAtBottom = scrollY >= maxScroll - 50;
 
+        // Alleen tonen als we bovenaan of onderaan zijn
         if (isAtTop) {
-            // Bovenaan: alleen naar beneden
+            // Bovenaan: naar beneden
+            scrollBtn.style.display = 'flex';
             scrollBtn.innerHTML = '<span class="scroll-icon">▼</span>';
             scrollBtn.title = 'Scroll naar beneden';
             scrollBtn.className = 'scroll-btn scroll-down';
         } else if (isAtBottom) {
-            // Onderaan: alleen naar boven
+            // Onderaan: naar boven
+            scrollBtn.style.display = 'flex';
             scrollBtn.innerHTML = '<span class="scroll-icon">▲</span>';
             scrollBtn.title = 'Scroll naar boven';
             scrollBtn.className = 'scroll-btn scroll-up';
         } else {
-            // In het midden: naar beneden scrollen
-            scrollBtn.innerHTML = '<span class="scroll-icon">▼</span>';
-            scrollBtn.title = 'Scroll naar beneden';
-            scrollBtn.className = 'scroll-btn scroll-down';
+            // In het midden: verborgen
+            scrollBtn.style.display = 'none';
         }
     }
 
@@ -1013,12 +1012,6 @@ const scrollBtn = document.getElementById('scrollBtn');
             // Scroll naar boven (naar de bovenkant)
             window.scrollTo({
                 top: 0,
-                behavior: 'smooth'
-            });
-        } else {
-            // In het midden: scroll naar beneden
-            window.scrollTo({
-                top: documentHeight,
                 behavior: 'smooth'
             });
         }
