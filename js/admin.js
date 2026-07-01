@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM & SERVICE_ROLE KEY =====
+// ===== ADMIN FUNCTIES - MET EDGE FUNCTION =====
 
 console.log('admin.js geladen');
 
@@ -58,10 +58,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     const saveStartpuntBtn = document.getElementById('saveStartpuntBtn');
     const startpuntInstelling = document.getElementById('startpuntInstelling');
     
-    // Service Role Key - VUL HIER JOUW KEY IN!
-    const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZHFjZ3Zpb3NzbXJ2bGdzaXFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTUwMTM4MCwiZXhwIjoyMDk3MDc3MzgwfQ.9bU82TwQuc5yViZPQfVAgyzCOTpVsPxfrhlDnL3rlqk';
-    const SUPABASE_URL = 'https://jcdqcgviossmrvlgsiqd.supabase.co';
-    
     let currentUserId = null;
     let alleGebruikers = [];
     let alleChauffeurs = [];
@@ -75,7 +71,37 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
     
-    // ===== GEBRUIKER VERWIJDEREN =====
+    // ===== EDGE FUNCTION AANROEP =====
+    async function callAdminAction(action, data) {
+        const { data: { session } } = await window.supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        if (!token) {
+            throw new Error('Je bent niet ingelogd. Log opnieuw in.');
+        }
+        
+        const response = await fetch(
+            'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/admin-operations',
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action, data })
+            }
+        );
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Er ging iets mis');
+        }
+        
+        return result;
+    }
+    
+    // ===== GEBRUIKER VERWIJDEREN (via Edge Function) =====
     async function verwijderGebruiker(userId) {
         if (userId === user.id) {
             alert('Je kunt jezelf niet verwijderen!');
@@ -85,44 +111,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
         
         try {
-            // Verwijder uit gebruikers_rollen met service_role key
-            const rollenResponse = await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen?user_id=eq.${userId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                    'apikey': SERVICE_ROLE_KEY,
-                    'Content-Type': 'application/json',
-                }
-            });
+            const result = await callAdminAction('delete', { user_id: userId });
             
-            console.log('Rollen delete status:', rollenResponse.status);
-            
-            // Verwijder uit Auth
-            const authResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                    'apikey': SERVICE_ROLE_KEY,
-                    'Content-Type': 'application/json',
-                }
-            });
-            
-            console.log('Auth delete status:', authResponse.status);
-            
-            if (authResponse.status === 404) {
-                alert('✅ Gebruiker verwijderd uit rollen! (Auth gebruiker bestond niet meer)');
-                laadGebruikers();
-                laadChauffeurs();
-                laadStatistieken();
-                return;
+            if (result.success) {
+                alert('✅ Gebruiker volledig verwijderd!');
+            } else {
+                alert('⚠️ ' + (result.warning || 'Gebruiker gedeeltelijk verwijderd.'));
             }
             
-            if (!authResponse.ok) {
-                const errorText = await authResponse.text();
-                throw new Error(`Auth delete failed: ${authResponse.status} - ${errorText}`);
-            }
-            
-            alert('✅ Gebruiker volledig verwijderd uit rollen en auth!');
             laadGebruikers();
             laadChauffeurs();
             laadStatistieken();
@@ -492,91 +488,71 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // ===== OPSLAAN GEBRUIKER (met RLS bypass) =====
-if (saveUserBtn) {
-    saveUserBtn.addEventListener('click', async () => {
-        const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
-        const email = document.getElementById('userEmail').value;
-        const password = document.getElementById('userPassword').value;
-        const rol = document.getElementById('userRol').value;
-        const isChauffeur = document.getElementById('userIsChauffeur').value === 'true';
-        const chauffeurNummer = document.getElementById('chauffeurNummer').value;
-        const chauffeurTelefoon = document.getElementById('chauffeurTelefoon').value;
-        
-        if (!gebruikersnaam) {
-            alert('Gebruikersnaam is verplicht');
-            return;
-        }
-        
-        try {
-            if (currentUserId) {
-                // Update bestaande gebruiker (via normale Supabase)
-                const updateData = {
-                    gebruikersnaam: gebruikersnaam,
-                    rol: rol,
-                    is_chauffeur: isChauffeur,
-                    chauffeur_nummer: chauffeurNummer || null,
-                    chauffeur_telefoon: chauffeurTelefoon || null
-                };
-                
-                const { error } = await window.supabase
-                    .from('gebruikers_rollen')
-                    .update(updateData)
-                    .eq('user_id', currentUserId);
-                
-                if (error) throw error;
-                alert('Gebruiker bijgewerkt');
-                
-            } else {
-                // Controleer of gebruikersnaam uniek is
-                const { data: bestaande } = await window.supabase
-                    .from('gebruikers_rollen')
-                    .select('gebruikersnaam')
-                    .eq('gebruikersnaam', gebruikersnaam);
-                
-                if (bestaande && bestaande.length > 0) {
-                    alert('Deze gebruikersnaam is al in gebruik');
-                    return;
-                }
-                
-                if (!password || password.length < 6) {
-                    alert('Wachtwoord is verplicht en moet minimaal 6 tekens bevatten');
-                    return;
-                }
-                
-                // Maak account aan in Auth
-                const { data: authData, error: authError } = await window.supabase.auth.signUp({
-                    email: email,
-                    password: password
-                });
-                
-                if (authError) throw authError;
-                
-                if (authData.user) {
-                    // STAP 1: Zet RLS tijdelijk UIT
-                    await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                            'apikey': SERVICE_ROLE_KEY,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=representation'
-                        },
-                        body: JSON.stringify({
-                            'row_level_security': false
-                        })
+    // ===== OPSLAAN GEBRUIKER (via Edge Function) =====
+    if (saveUserBtn) {
+        saveUserBtn.addEventListener('click', async () => {
+            const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPassword').value;
+            const rol = document.getElementById('userRol').value;
+            const isChauffeur = document.getElementById('userIsChauffeur').value === 'true';
+            const chauffeurNummer = document.getElementById('chauffeurNummer').value;
+            const chauffeurTelefoon = document.getElementById('chauffeurTelefoon').value;
+            
+            if (!gebruikersnaam) {
+                alert('Gebruikersnaam is verplicht');
+                return;
+            }
+            
+            try {
+                if (currentUserId) {
+                    // Update bestaande gebruiker via Edge Function
+                    const updateData = {
+                        gebruikersnaam: gebruikersnaam,
+                        rol: rol,
+                        is_chauffeur: isChauffeur,
+                        chauffeur_nummer: chauffeurNummer || null,
+                        chauffeur_telefoon: chauffeurTelefoon || null
+                    };
+                    
+                    const result = await callAdminAction('update', { 
+                        user_id: currentUserId, 
+                        ...updateData 
                     });
                     
-                    // STAP 2: Voeg de gebruiker toe
-                    const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                            'apikey': SERVICE_ROLE_KEY,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=representation'
-                        },
-                        body: JSON.stringify({
+                    if (result.success) {
+                        alert('Gebruiker bijgewerkt!');
+                    } else {
+                        throw new Error(result.error || 'Update mislukt');
+                    }
+                    
+                } else {
+                    // Controleer of gebruikersnaam uniek is
+                    const { data: bestaande } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .select('gebruikersnaam')
+                        .eq('gebruikersnaam', gebruikersnaam);
+                    
+                    if (bestaande && bestaande.length > 0) {
+                        alert('Deze gebruikersnaam is al in gebruik');
+                        return;
+                    }
+                    
+                    if (!password || password.length < 6) {
+                        alert('Wachtwoord is verplicht en moet minimaal 6 tekens bevatten');
+                        return;
+                    }
+                    
+                    // Maak account aan in Auth
+                    const { data: authData, error: authError } = await window.supabase.auth.signUp({
+                        email: email,
+                        password: password
+                    });
+                    
+                    if (authError) throw authError;
+                    
+                    if (authData.user) {
+                        const result = await callAdminAction('insert', {
                             user_id: authData.user.id,
                             gebruikersnaam: gebruikersnaam,
                             rol: rol,
@@ -584,43 +560,27 @@ if (saveUserBtn) {
                             chauffeur_nummer: chauffeurNummer || null,
                             chauffeur_telefoon: chauffeurTelefoon || null,
                             status: 'wachtend'
-                        })
-                    });
-                    
-                    // STAP 3: Zet RLS weer AAN
-                    await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                            'apikey': SERVICE_ROLE_KEY,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=representation'
-                        },
-                        body: JSON.stringify({
-                            'row_level_security': true
-                        })
-                    });
-                    
-                    if (!insertResponse.ok) {
-                        const errorText = await insertResponse.text();
-                        throw new Error(`Kon gebruiker niet toevoegen: ${errorText}`);
+                        });
+                        
+                        if (result.success) {
+                            alert(`Gebruiker ${gebruikersnaam} aangemaakt! Status: wachtend op goedkeuring.`);
+                        } else {
+                            throw new Error(result.error || 'Insert mislukt');
+                        }
                     }
-                    
-                    alert(`Gebruiker ${gebruikersnaam} aangemaakt! Status: wachtend op goedkeuring.`);
                 }
+                
+                userPopup.style.display = 'none';
+                laadGebruikers();
+                laadChauffeurs();
+                laadStatistieken();
+                
+            } catch (err) {
+                console.error('Fout:', err);
+                alert('Fout: ' + err.message);
             }
-            
-            userPopup.style.display = 'none';
-            laadGebruikers();
-            laadChauffeurs();
-            laadStatistieken();
-            
-        } catch (err) {
-            console.error('Fout:', err);
-            alert('Fout: ' + err.message);
-        }
-    });
-}
+        });
+    }
     
     // ===== SLUIT POPUP =====
     if (closeUserPopup) {
