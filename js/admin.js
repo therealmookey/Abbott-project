@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM & EDGE FUNCTION VERWIJDERING =====
+// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM & SQL VERWIJDERING =====
 
 console.log('admin.js geladen');
 
@@ -71,54 +71,30 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
     
-    // ===== GEBRUIKER VERWIJDEREN (VIA EDGE FUNCTION) =====
+    // ===== GEBRUIKER VERWIJDEREN (VIA SQL FUNCTIE) =====
     async function verwijderGebruiker(userId) {
         if (userId === user.id) {
             alert('Je kunt jezelf niet verwijderen!');
             return;
         }
         
-        if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
+        if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen?\n\nLet op: Het Auth account moet handmatig verwijderd worden via:\nSupabase Dashboard → Authentication → Users')) return;
         
         try {
-            // Haal de session token op
-            const { data: { session } } = await window.supabase.auth.getSession();
-            const token = session?.access_token;
+            // Roep de SQL functie aan via Supabase RPC
+            const { data, error } = await window.supabase
+                .rpc('delete_user_by_id', { user_id_input: userId });
             
-            if (!token) {
-                alert('Je bent niet ingelogd. Log opnieuw in.');
-                return;
-            }
+            if (error) throw error;
             
-            // Roep de Edge Function aan
-            const response = await fetch(
-                'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/delete-user',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ user_id: userId })
-                }
-            );
-            
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result.error || 'Er ging iets mis bij het verwijderen');
-            }
-            
-            if (result.success) {
-                alert('✅ Gebruiker volledig verwijderd!');
+            if (data && data.success) {
+                alert('✅ Gebruiker verwijderd uit rollen!\n\nVerwijder nu het Auth account handmatig via:\nSupabase Dashboard → Authentication → Users');
+                laadGebruikers();
+                laadChauffeurs();
+                laadStatistieken();
             } else {
-                alert('⚠️ ' + (result.warning || 'Gebruiker gedeeltelijk verwijderd.'));
+                throw new Error(data?.error || 'Er ging iets mis');
             }
-            
-            // Herlaad de lijsten
-            laadGebruikers();
-            laadChauffeurs();
-            laadStatistieken();
             
         } catch (err) {
             console.error('Fout bij verwijderen:', err);
