@@ -647,3 +647,94 @@ document.addEventListener('DOMContentLoaded', function() {
     laadCombinaties();
     
 });
+// ===== SCROLL FUNCTIE =====
+
+const scrollBtn = document.getElementById('scrollBtn');
+
+function updateScrollButton() {
+    if (!scrollBtn) return;
+    
+    const scrollY = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+    const maxScroll = documentHeight - windowHeight;
+    
+    // Check of we bovenaan, onderaan of in het midden zijn
+    const isAtTop = scrollY < 100;
+    const isAtBottom = scrollY >= maxScroll - 100;
+    
+    if (isAtTop) {
+        // Bovenaan: alleen naar beneden
+        scrollBtn.innerHTML = '<span class="scroll-icon">▼</span>';
+        scrollBtn.title = 'Scroll naar beneden';
+        scrollBtn.className = 'scroll-btn scroll-down';
+    } else if (isAtBottom) {
+        // Onderaan: alleen naar boven
+        scrollBtn.innerHTML = '<span class="scroll-icon">▲</span>';
+        scrollBtn.title = 'Scroll naar boven';
+        scrollBtn.className = 'scroll-btn scroll-up';
+    } else {
+        // Midden: beide knoppen (twee pijlen)
+        scrollBtn.innerHTML = '<span class="scroll-icon">▲▼</span>';
+        scrollBtn.title = 'Scroll naar boven of beneden';
+        scrollBtn.className = 'scroll-btn scroll-both';
+    }
+}
+
+if (scrollBtn) {
+    scrollBtn.addEventListener('click', function() {
+        const scrollY = window.scrollY;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        const maxScroll = documentHeight - windowHeight;
+        
+        const isAtTop = scrollY < 100;
+        const isAtBottom = scrollY >= maxScroll - 100;
+        
+        if (isAtTop) {
+            // Scroll naar beneden
+            window.scrollTo({
+                top: documentHeight,
+                behavior: 'smooth'
+            });
+        } else if (isAtBottom) {
+            // Scroll naar boven
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        } else {
+            // In het midden: scroll naar de dichtstbijzijnde kant
+            if (scrollY < maxScroll / 2) {
+                // Eerste helft: scroll naar beneden
+                window.scrollTo({
+                    top: documentHeight,
+                    behavior: 'smooth'
+                });
+            } else {
+                // Tweede helft: scroll naar boven
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    });
+    
+    // Update scroll button bij scroll events
+    let scrollTimeout;
+    window.addEventListener('scroll', function() {
+        if (scrollTimeout) {
+            window.cancelAnimationFrame(scrollTimeout);
+        }
+        scrollTimeout = window.requestAnimationFrame(function() {
+            updateScrollButton();
+        });
+    });
+    
+    // Update ook bij resize
+    window.addEventListener('resize', updateScrollButton);
+    
+    // Initialiseer de knop
+    setTimeout(updateScrollButton, 500);
+}

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ophaalregistraties - Abbott</title>
-    <link rel="stylesheet" href="css/style.css?v=27">
-    <!-- SheetJS voor Excel export -->
+    <link rel="stylesheet" href="css/style.css?v=29">
+    <!-- SheetJS voor Excel export/import -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- html2pdf voor PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -18,6 +18,7 @@
             <div class="page-header-left">
                 <h1>📋 Ophaalregistraties</h1>
                 <button id="addRegistratieBtn" class="btn btn-primary">+ Nieuwe registratie</button>
+                <button id="importExcelBtn" class="btn btn-success">📥 Import Excel</button>
             </div>
             <div class="page-header-right">
                 <button id="exportExcelBtn" class="btn btn-success">📊 Export Excel</button>
@@ -61,6 +62,11 @@
         </div>
     </main>
     
+    <!-- Scroll knop -->
+    <button id="scrollBtn" class="scroll-btn" title="Scroll naar beneden">
+        <span class="scroll-icon">▼</span>
+    </button>
+    
     <!-- Popup voor registratie toevoegen/bewerken -->
     <div id="registratiePopup" class="popup">
         <div class="popup-content">
@@ -80,13 +86,11 @@
             <label>Datum *</label>
             <input type="date" id="registratieDatum" required>
             
-            <!-- Ophaling velden -->
             <div id="ophalingVeldenReg">
                 <label>Gewicht (kg) *</label>
                 <input type="number" id="gewicht" placeholder="Bijv. 15.5" step="0.1">
             </div>
             
-            <!-- Opstart velden -->
             <div id="opstartVelden" style="display: none;">
                 <label>Combinatie *</label>
                 <select id="combinatieSelect">
@@ -108,20 +112,64 @@
         </div>
     </div>
     
-    <!-- WhatsApp popup (bestond al) -->
-    <div id="whatsappPopup" class="popup">
-        <div class="popup-content whatsapp-popup">
-            <h3>📱 Stuur route naar chauffeur</h3>
+    <!-- Popup voor Excel import -->
+    <div id="importPopup" class="popup">
+        <div class="popup-content import-popup">
+            <h3>📥 Excel import</h3>
+            <p>Upload een Excel bestand (.xlsx, .xls, .csv) met ophaalregistraties.</p>
             
-            <div class="route-bericht">
-                <h4>📝 WhatsApp bericht</h4>
-                <textarea id="whatsappBericht" rows="12" readonly style="width:100%; padding:10px; border-radius:8px; font-family:monospace; font-size:12px;"></textarea>
+            <div class="import-template">
+                <h4>📋 Benodigde kolommen:</h4>
+                <table class="import-template-table">
+                    <thead>
+                        <tr>
+                            <th>Kolom</th>
+                            <th>Omschrijving</th>
+                            <th>Verplicht</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Ziekenhuis</strong></td>
+                            <td>Naam van het ziekenhuis (moet bestaan in adressen)</td>
+                            <td>✅ Ja</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Datum</strong></td>
+                            <td>Datum van ophaling (JJJJ-MM-DD of DD-MM-JJJJ)</td>
+                            <td>✅ Ja</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Gewicht</strong></td>
+                            <td>Gewicht in kg (alleen voor ophalingen)</td>
+                            <td>❌ Nee</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Type</strong></td>
+                            <td>"ophaling" of "opstart"</td>
+                            <td>❌ Nee (standaard: ophaling)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Opmerkingen</strong></td>
+                            <td>Extra informatie</td>
+                            <td>❌ Nee</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button id="downloadTemplateBtn" class="btn btn-secondary">📥 Download template</button>
             </div>
             
-            <div class="route-actions">
-                <button id="sendWhatsAppBtn" class="btn btn-primary">📱 Verstuur via WhatsApp</button>
-                <button id="copyBerichtBtn" class="btn btn-secondary">📋 Kopieer bericht</button>
-                <button id="closeWhatsappPopup" class="btn btn-secondary">Sluiten</button>
+            <hr>
+            
+            <div class="import-upload">
+                <label>📁 Selecteer bestand</label>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+                <div id="importPreview" class="import-preview"></div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                <button id="confirmImportBtn" class="btn btn-primary">✅ Importeer</button>
+                <button id="closeImportPopup" class="btn btn-secondary">Annuleren</button>
             </div>
         </div>
     </div>
