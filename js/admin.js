@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - MET EDGE FUNCTION =====
+// ===== ADMIN FUNCTIES - MET EDGE FUNCTION & SESSIE BEHOUD =====
 
 console.log('admin.js geladen');
 
@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // ===== OPSLAAN GEBRUIKER (via Edge Function) =====
+    // ===== OPSLAAN GEBRUIKER (met sessie behoud) =====
     if (saveUserBtn) {
         saveUserBtn.addEventListener('click', async () => {
             const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
@@ -543,6 +543,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                         return;
                     }
                     
+                    // ===== BEWAAR DE HUIDIGE SESSIE =====
+                    const { data: { session: huidigeSessie } } = await window.supabase.auth.getSession();
+                    console.log('Huidige sessie bewaard:', huidigeSessie ? 'Ja' : 'Nee');
+                    
                     // Maak account aan in Auth
                     const { data: authData, error: authError } = await window.supabase.auth.signUp({
                         email: email,
@@ -550,6 +554,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                     });
                     
                     if (authError) throw authError;
+                    
+                    // ===== HERSTEL DE OUDE SESSIE =====
+                    if (huidigeSessie) {
+                        console.log('Herstellen van oude sessie...');
+                        await window.supabase.auth.setSession(huidigeSessie);
+                    }
                     
                     if (authData.user) {
                         const result = await callAdminAction('insert', {
