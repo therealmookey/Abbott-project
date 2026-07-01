@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - BLIJFT INGELOGD =====
+// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM =====
 
 console.log('admin.js geladen');
 
@@ -9,79 +9,35 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
-    // Voorkom dat form submits de pagina herladen
-    document.addEventListener('submit', function(e) {
-        e.preventDefault();
-    });
-    
-    // Hulpfunctie voor berichten
-    function toonFout(bericht) {
-        console.error(bericht);
-        const container = document.querySelector('.container');
-        if (container) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'message error';
-            errorDiv.textContent = bericht;
-            errorDiv.style.cssText = 'background:#f8d7da;color:#721c24;padding:15px;margin:20px;border-radius:8px;';
-            container.prepend(errorDiv);
-            setTimeout(() => errorDiv.remove(), 5000);
-        }
-    }
-    
-    // Huidige gebruiker ophalen
-    const { data: { user }, error: userError } = await window.supabase.auth.getUser();
-    
-    if (userError) {
-        console.error('Fout bij ophalen gebruiker:', userError);
-        toonFout('Kon gebruiker niet laden. Ben je ingelogd?');
-        setTimeout(() => window.location.href = 'index.html', 2000);
-        return;
-    }
-    
+    // Controleer of de ingelogde gebruiker een admin is
+    const { data: { user } } = await window.supabase.auth.getUser();
     if (!user) {
-        console.log('Geen gebruiker ingelogd');
-        toonFout('Je moet ingelogd zijn om deze pagina te bekijken.');
-        setTimeout(() => window.location.href = 'index.html', 2000);
+        window.location.href = 'index.html';
         return;
     }
     
-    console.log('Ingelogd als:', user.email);
+    console.log('Ingelogde user ID:', user.id);
     
-    // Admin check - kijk in gebruikers_rollen tabel
+    // Check admin status
+    const { data: userRollen, error: rolError } = await window.supabase
+        .from('gebruikers_rollen')
+        .select('rol')
+        .eq('user_id', user.id);
+    
+    console.log('User rollen:', userRollen);
+    
     let isAdmin = false;
-    
-    try {
-        const { data: adminData, error: adminError } = await window.supabase
-            .from('gebruikers_rollen')
-            .select('rol')
-            .eq('user_id', user.id)
-            .maybeSingle();
-        
-        if (adminError) {
-            console.error('Fout bij admin check:', adminError);
-        }
-        
-        isAdmin = (adminData && adminData.rol === 'admin');
-        
-        // Fallback voor vaste admin
-        if (!isAdmin && user.id === 'fixed_admin_001') {
-            isAdmin = true;
-        }
-        
-    } catch (err) {
-        console.error('Admin check error:', err);
+    if (userRollen && userRollen.length > 0) {
+        isAdmin = (userRollen[0].rol === 'admin');
     }
     
     if (!isAdmin) {
-        console.log('Geen admin rechten voor:', user.email);
-        toonFout('Je hebt geen toegang tot deze pagina. Alleen admins kunnen hier komen.');
-        setTimeout(() => window.location.href = 'dashboard.html', 2000);
+        alert('Je hebt geen toegang tot deze pagina. Alleen admins kunnen hier komen.');
+        window.location.href = 'dashboard.html';
         return;
     }
     
-    console.log('✅ Admin toegang verleend voor:', user.email);
-    
-    // =========== ADMIN FUNCTIONALITEIT ===========
+    console.log('✅ Admin toegang verleend!');
     
     // DOM elementen
     const addUserBtn = document.getElementById('addUserBtn');
@@ -98,12 +54,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     const searchChauffeurInput = document.getElementById('searchChauffeurInput');
     const clearChauffeurSearchBtn = document.getElementById('clearChauffeurSearchBtn');
     const aantalGebruikersSpan = document.getElementById('aantalGebruikers');
-    const aantalChauffeursSpan = document.getElementById('aantalChauffeurs');
     const aantalAdressenSpan = document.getElementById('aantalAdressen');
     const saveStartpuntBtn = document.getElementById('saveStartpuntBtn');
     const startpuntInstelling = document.getElementById('startpuntInstelling');
     
     let currentUserId = null;
+    let alleGebruikers = [];
+    let alleChauffeurs = [];
     let huidigeUserZoekterm = '';
     let huidigeChauffeurZoekterm = '';
     
@@ -114,67 +71,151 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
     
-    // Laad alle gebruikers
+    // Haal alle gebruikers op
     async function laadGebruikers() {
         if (!gebruikersLijst) return;
+        
         gebruikersLijst.innerHTML = '<p>Bezig met laden...</p>';
         
         try {
-            const { data, error } = await window.supabase
+            const { data: rollen, error: rollenError } = await window.supabase
                 .from('gebruikers_rollen')
                 .select('*')
                 .order('created_at', { ascending: false });
             
-            if (error) throw error;
+            if (rollenError) throw rollenError;
             
-            if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = data?.length || 0;
-            
-            let gefilterd = data || [];
-            if (huidigeUserZoekterm) {
-                const term = huidigeUserZoekterm.toLowerCase();
-                gefilterd = gefilterd.filter(g => 
-                    (g.gebruikersnaam && g.gebruikersnaam.toLowerCase().includes(term))
-                );
-            }
-            
-            if (gefilterd.length === 0) {
+            if (!rollen || rollen.length === 0) {
                 gebruikersLijst.innerHTML = '<p>Geen gebruikers gevonden.</p>';
+                if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = '0';
                 return;
             }
             
-            let html = `<div style="overflow-x: auto;"><table style="width:100%;border-collapse:collapse;">
-                <thead><tr style="background:#f8f9fa;">
-                    <th style="padding:12px;text-align:left;">Gebruikersnaam</th>
-                    <th style="padding:12px;text-align:left;">Rol</th>
-                    <th style="padding:12px;text-align:left;">Chauffeur</th>
-                    <th style="padding:12px;text-align:left;">Nummer</th>
-                    <th style="padding:12px;text-align:left;">WhatsApp</th>
-                    <th style="padding:12px;text-align:left;">Aangemaakt</th>
-                    <th style="padding:12px;text-align:left;">Acties</th>
-                </tr></thead><tbody>`;
+            if (aantalGebruikersSpan) aantalGebruikersSpan.textContent = rollen.length;
             
-            for (const g of gefilterd) {
-                html += `<tr style="border-bottom:1px solid #e9ecef;">
-                    <td style="padding:12px;"><strong>${escapeHtml(g.gebruikersnaam || '-')}</strong></td>
-                    <td style="padding:12px;">${g.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
-                    <td style="padding:12px;">${g.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
-                    <td style="padding:12px;">${escapeHtml(g.chauffeur_nummer || '-')}</td>
-                    <td style="padding:12px;">${escapeHtml(g.chauffeur_telefoon || '-')}</td>
-                    <td style="padding:12px;">${new Date(g.created_at).toLocaleDateString('nl-NL')}</td>
-                    <td style="padding:12px;">
-                        <button class="btn btn-secondary edit-btn" data-userid="${g.user_id}" style="margin-right:5px;">✏️</button>
-                        <button class="btn btn-danger delete-btn" data-userid="${g.user_id}">🗑️</button>
-                    </td>
-                </tr>`;
+            // Filter op zoekterm
+            let gefilterdeRollen = rollen;
+            if (huidigeUserZoekterm) {
+                const term = huidigeUserZoekterm.toLowerCase();
+                gefilterdeRollen = rollen.filter(rol => 
+                    (rol.gebruikersnaam && rol.gebruikersnaam.toLowerCase().includes(term)) ||
+                    (rol.user_id && rol.user_id.toLowerCase().includes(term)) ||
+                    (rol.rol && rol.rol.toLowerCase().includes(term)) ||
+                    (rol.status && rol.status.toLowerCase().includes(term))
+                );
             }
             
-            html += `</tbody></table></div>`;
+            let html = `
+                <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
+                            <th style="padding: 12px; text-align: left;">E-mail</th>
+                            <th style="padding: 12px; text-align: left;">Rol</th>
+                            <th style="padding: 12px; text-align: left;">Chauffeur</th>
+                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
+                            <th style="padding: 12px; text-align: left;">Telefoon</th>
+                            <th style="padding: 12px; text-align: left;">Status</th>
+                            <th style="padding: 12px; text-align: left;">Aangemaakt</th>
+                            <th style="padding: 12px; text-align: left;">Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            for (const rol of gefilterdeRollen) {
+                // Status weergave
+                let statusDisplay = '';
+                if (rol.status === 'wachtend') {
+                    statusDisplay = '⏳ Wachtend';
+                } else if (rol.status === 'goedgekeurd') {
+                    statusDisplay = '✅ Goedgekeurd';
+                } else if (rol.status === 'geweigerd') {
+                    statusDisplay = '❌ Geweigerd';
+                } else {
+                    statusDisplay = '✅ Goedgekeurd'; // Default voor bestaande gebruikers
+                }
+                
+                // E-mail kunnen we niet makkelijk ophalen via de client
+                const emailDisplay = rol.user_id === user.id ? 'Jouw account' : rol.user_id.substring(0, 8) + '...@email';
+                
+                html += `
+                    <tr style="border-bottom: 1px solid #e9ecef;" data-userid="${rol.user_id}">
+                        <td style="padding: 12px;"><strong>${escapeHtml(rol.gebruikersnaam || '-')}</strong></td>
+                        <td style="padding: 12px;">${escapeHtml(emailDisplay)}</td>
+                        <td style="padding: 12px;">${rol.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
+                        <td style="padding: 12px;">${rol.is_chauffeur ? '✅ Ja' : '❌ Nee'}</td>
+                        <td style="padding: 12px;">${rol.chauffeur_nummer || '-'}</td>
+                        <td style="padding: 12px;">${rol.chauffeur_telefoon || '-'}</td>
+                        <td style="padding: 12px;">${statusDisplay}</td>
+                        <td style="padding: 12px;">${new Date(rol.created_at).toLocaleDateString('nl-NL')}</td>
+                        <td style="padding: 12px;" class="admin-buttons">
+                            ${rol.status === 'wachtend' ? `
+                                <button class="btn btn-success approve-btn" data-userid="${rol.user_id}" style="margin-right: 5px;">✅ Goedkeuren</button>
+                                <button class="btn btn-danger reject-btn" data-userid="${rol.user_id}" style="margin-right: 5px;">❌ Weigeren</button>
+                            ` : ''}
+                            <button class="btn btn-secondary edit-user-btn" data-userid="${rol.user_id}" style="margin-right: 5px;">✏️ Bewerken</button>
+                            <button class="btn btn-danger delete-user-btn" data-userid="${rol.user_id}">🗑️ Verwijderen</button>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            html += `
+                    </tbody>
+                </table>
+                </div>
+            `;
+            
             gebruikersLijst.innerHTML = html;
             
-            document.querySelectorAll('.edit-btn').forEach(btn => {
+            // Event listeners voor goedkeuren/weigeren
+            document.querySelectorAll('.approve-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userid;
+                    if (!confirm('Weet je zeker dat je deze gebruiker wilt goedkeuren?')) return;
+                    
+                    const { error } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .update({ status: 'goedgekeurd' })
+                        .eq('user_id', userId);
+                    
+                    if (error) {
+                        alert('Fout: ' + error.message);
+                    } else {
+                        alert('✅ Gebruiker goedgekeurd!');
+                        laadGebruikers();
+                        laadChauffeurs();
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.reject-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userid;
+                    if (!confirm('Weet je zeker dat je deze gebruiker wilt weigeren?')) return;
+                    
+                    const { error } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .update({ status: 'geweigerd' })
+                        .eq('user_id', userId);
+                    
+                    if (error) {
+                        alert('Fout: ' + error.message);
+                    } else {
+                        alert('❌ Gebruiker geweigerd.');
+                        laadGebruikers();
+                        laadChauffeurs();
+                    }
+                });
+            });
+            
+            // Edit en delete buttons
+            document.querySelectorAll('.edit-user-btn').forEach(btn => {
                 btn.addEventListener('click', () => bewerkGebruiker(btn.dataset.userid));
             });
-            document.querySelectorAll('.delete-btn').forEach(btn => {
+            document.querySelectorAll('.delete-user-btn').forEach(btn => {
                 btn.addEventListener('click', () => verwijderGebruiker(btn.dataset.userid));
             });
             
@@ -184,13 +225,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Laad alleen chauffeurs
+    // Laad chauffeurs
     async function laadChauffeurs() {
         if (!chauffeursLijst) return;
+        
         chauffeursLijst.innerHTML = '<p>Bezig met laden...</p>';
         
         try {
-            const { data, error } = await window.supabase
+            const { data: chauffeurs, error } = await window.supabase
                 .from('gebruikers_rollen')
                 .select('*')
                 .eq('is_chauffeur', true)
@@ -198,34 +240,97 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (error) throw error;
             
-            if (aantalChauffeursSpan) aantalChauffeursSpan.textContent = data?.length || 0;
-            
-            if (!data || data.length === 0) {
-                chauffeursLijst.innerHTML = '<p>Geen chauffeurs gevonden. Vink "Chauffeur" aan bij een gebruiker.</p>';
+            if (!chauffeurs || chauffeurs.length === 0) {
+                chauffeursLijst.innerHTML = '<p>Geen chauffeurs gevonden. Wijs een gebruiker aan als chauffeur.</p>';
                 return;
             }
             
-            let html = `<div style="overflow-x: auto;"><table style="width:100%;border-collapse:collapse;">
-                <thead><tr style="background:#f8f9fa;">
-                    <th style="padding:12px;text-align:left;">Nummer</th>
-                    <th style="padding:12px;text-align:left;">Gebruikersnaam</th>
-                    <th style="padding:12px;text-align:left;">WhatsApp</th>
-                    <th style="padding:12px;text-align:left;">Acties</th>
-                </tr></thead><tbody>`;
+            let html = `
+                <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="padding: 12px; text-align: left;">Chauffeursnummer</th>
+                            <th style="padding: 12px; text-align: left;">Gebruikersnaam</th>
+                            <th style="padding: 12px; text-align: left;">Telefoon</th>
+                            <th style="padding: 12px; text-align: left;">Rol</th>
+                            <th style="padding: 12px; text-align: left;">Status</th>
+                            <th style="padding: 12px; text-align: left;">Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
             
-            for (const c of data) {
-                html += `<tr style="border-bottom:1px solid #e9ecef;">
-                    <td style="padding:12px;"><strong>${escapeHtml(c.chauffeur_nummer || '-')}</strong></td>
-                    <td style="padding:12px;">${escapeHtml(c.gebruikersnaam || '-')}</td>
-                    <td style="padding:12px;">${escapeHtml(c.chauffeur_telefoon || '-')}</td>
-                    <td style="padding:12px;">
-                        <button class="btn btn-secondary edit-chauffeur-btn" data-userid="${c.user_id}">✏️ Bewerken</button>
-                    </td>
-                </tr>`;
+            for (const chauffeur of chauffeurs) {
+                let statusDisplay = '✅ Goedgekeurd';
+                if (chauffeur.status === 'wachtend') statusDisplay = '⏳ Wachtend';
+                else if (chauffeur.status === 'geweigerd') statusDisplay = '❌ Geweigerd';
+                
+                html += `
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px;">${escapeHtml(chauffeur.chauffeur_nummer || '-')}</td>
+                        <td style="padding: 12px;"><strong>${escapeHtml(chauffeur.gebruikersnaam || '-')}</strong></td>
+                        <td style="padding: 12px;">${escapeHtml(chauffeur.chauffeur_telefoon || '-')}</td>
+                        <td style="padding: 12px;">${chauffeur.rol === 'admin' ? '👑 Admin' : '👤 Gebruiker'}</td>
+                        <td style="padding: 12px;">${statusDisplay}</td>
+                        <td style="padding: 12px;" class="admin-buttons">
+                            ${chauffeur.status === 'wachtend' ? `
+                                <button class="btn btn-success approve-chauffeur-btn" data-userid="${chauffeur.user_id}" style="margin-right: 5px;">✅ Goedkeuren</button>
+                                <button class="btn btn-danger reject-chauffeur-btn" data-userid="${chauffeur.user_id}" style="margin-right: 5px;">❌ Weigeren</button>
+                            ` : ''}
+                            <button class="btn btn-secondary edit-chauffeur-btn" data-userid="${chauffeur.user_id}">✏️ Bewerken</button>
+                        </td>
+                    </tr>
+                `;
             }
             
-            html += `</tbody></table></div>`;
+            html += `
+                    </tbody>
+                </table>
+                </div>
+            `;
+            
             chauffeursLijst.innerHTML = html;
+            
+            document.querySelectorAll('.approve-chauffeur-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userid;
+                    if (!confirm('Weet je zeker dat je deze chauffeur wilt goedkeuren?')) return;
+                    
+                    const { error } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .update({ status: 'goedgekeurd' })
+                        .eq('user_id', userId);
+                    
+                    if (error) {
+                        alert('Fout: ' + error.message);
+                    } else {
+                        alert('✅ Chauffeur goedgekeurd!');
+                        laadGebruikers();
+                        laadChauffeurs();
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.reject-chauffeur-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const userId = btn.dataset.userid;
+                    if (!confirm('Weet je zeker dat je deze chauffeur wilt weigeren?')) return;
+                    
+                    const { error } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .update({ status: 'geweigerd' })
+                        .eq('user_id', userId);
+                    
+                    if (error) {
+                        alert('Fout: ' + error.message);
+                    } else {
+                        alert('❌ Chauffeur geweigerd.');
+                        laadGebruikers();
+                        laadChauffeurs();
+                    }
+                });
+            });
             
             document.querySelectorAll('.edit-chauffeur-btn').forEach(btn => {
                 btn.addEventListener('click', () => bewerkGebruiker(btn.dataset.userid));
@@ -243,11 +348,27 @@ document.addEventListener('DOMContentLoaded', async function() {
             const { count: adresCount } = await window.supabase
                 .from('adressen')
                 .select('*', { count: 'exact', head: true });
+            
+            const { count: userCount } = await window.supabase
+                .from('gebruikers_rollen')
+                .select('*', { count: 'exact', head: true });
+            
+            const { count: wachtendCount } = await window.supabase
+                .from('gebruikers_rollen')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'wachtend');
+            
             if (aantalAdressenSpan) aantalAdressenSpan.textContent = adresCount || 0;
-        } catch(e) { console.error(e); }
+            if (aantalGebruikersSpan) {
+                aantalGebruikersSpan.textContent = `${userCount || 0} (${wachtendCount || 0} wachtend)`;
+            }
+            
+        } catch (err) {
+            console.error('Fout bij laden statistieken:', err);
+        }
     }
     
-    // Bewerk gebruiker
+    // Gebruiker bewerken
     async function bewerkGebruiker(userId) {
         currentUserId = userId;
         userPopupTitle.textContent = 'Gebruiker bewerken';
@@ -262,17 +383,20 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (error) throw error;
             
             document.getElementById('userGebruikersnaam').value = data.gebruikersnaam || '';
-            document.getElementById('userEmail').disabled = true;
             document.getElementById('userEmail').value = '';
+            document.getElementById('userEmail').disabled = true;
             document.getElementById('userEmail').placeholder = 'E-mail niet bewerkbaar';
+            
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = false;
+            
             document.getElementById('userRol').value = data.rol;
             document.getElementById('userIsChauffeur').value = data.is_chauffeur ? 'true' : 'false';
             document.getElementById('chauffeurNummer').value = data.chauffeur_nummer || '';
             document.getElementById('chauffeurTelefoon').value = data.chauffeur_telefoon || '';
             
             chauffeurVelden.style.display = data.is_chauffeur ? 'block' : 'none';
+            
             userPopup.style.display = 'flex';
             
         } catch (err) {
@@ -280,17 +404,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Verwijder gebruiker
+    // Gebruiker verwijderen
     async function verwijderGebruiker(userId) {
-        if (userId === 'fixed_admin_001') {
-            alert('Je kunt de vaste admin niet verwijderen!');
-            return;
-        }
         if (userId === user.id) {
             alert('Je kunt jezelf niet verwijderen!');
             return;
         }
-        if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) return;
+        
+        if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
         
         try {
             const { error } = await window.supabase
@@ -299,22 +420,24 @@ document.addEventListener('DOMContentLoaded', async function() {
                 .eq('user_id', userId);
             
             if (error) throw error;
+            
             alert('Gebruiker verwijderd');
             laadGebruikers();
             laadChauffeurs();
+            
         } catch (err) {
-            alert('Fout: ' + err.message);
+            alert('Fout bij verwijderen: ' + err.message);
         }
     }
     
-    // Nieuwe gebruiker knop
+    // Nieuwe gebruiker
     if (addUserBtn) {
         addUserBtn.addEventListener('click', () => {
             currentUserId = null;
             userPopupTitle.textContent = 'Nieuwe gebruiker';
             document.getElementById('userGebruikersnaam').value = '';
-            document.getElementById('userEmail').disabled = false;
             document.getElementById('userEmail').value = '';
+            document.getElementById('userEmail').disabled = false;
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = true;
             document.getElementById('userRol').value = 'gebruiker';
@@ -333,7 +456,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // Opslaan gebruiker (met sessie behoud)
+    // Opslaan gebruiker
     if (saveUserBtn) {
         saveUserBtn.addEventListener('click', async () => {
             const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
@@ -352,53 +475,57 @@ document.addEventListener('DOMContentLoaded', async function() {
             try {
                 if (currentUserId) {
                     // Update bestaande gebruiker
+                    const updateData = {
+                        gebruikersnaam: gebruikersnaam,
+                        rol: rol,
+                        is_chauffeur: isChauffeur,
+                        chauffeur_nummer: chauffeurNummer || null,
+                        chauffeur_telefoon: chauffeurTelefoon || null
+                    };
+                    
+                    // Als de gebruiker al goedgekeurd is, behoud status
+                    const { data: existing } = await window.supabase
+                        .from('gebruikers_rollen')
+                        .select('status')
+                        .eq('user_id', currentUserId)
+                        .single();
+                    
+                    if (existing && existing.status !== 'wachtend') {
+                        // Behoud bestaande status
+                    }
+                    
                     const { error } = await window.supabase
                         .from('gebruikers_rollen')
-                        .update({
-                            gebruikersnaam: gebruikersnaam,
-                            rol: rol,
-                            is_chauffeur: isChauffeur,
-                            chauffeur_nummer: chauffeurNummer || null,
-                            chauffeur_telefoon: chauffeurTelefoon || null
-                        })
+                        .update(updateData)
                         .eq('user_id', currentUserId);
                     
                     if (error) throw error;
                     alert('Gebruiker bijgewerkt');
                     
                 } else {
-                    // Nieuwe gebruiker - bewaar huidige sessie
-                    if (!email || !password || password.length < 6) {
-                        alert('E-mail en wachtwoord (min. 6 tekens) zijn verplicht');
-                        return;
-                    }
-                    
                     // Controleer of gebruikersnaam uniek is
-                    const { data: bestaand } = await window.supabase
+                    const { data: bestaande, error: checkError } = await window.supabase
                         .from('gebruikers_rollen')
                         .select('gebruikersnaam')
                         .eq('gebruikersnaam', gebruikersnaam);
                     
-                    if (bestaand && bestaand.length > 0) {
-                        alert('Deze gebruikersnaam bestaat al');
+                    if (bestaande && bestaande.length > 0) {
+                        alert('Deze gebruikersnaam is al in gebruik');
                         return;
                     }
                     
-                    // Bewaar de huidige sessie voordat we een nieuwe gebruiker maken
-                    const { data: { session: huidigeSessie } } = await window.supabase.auth.getSession();
+                    if (!password || password.length < 6) {
+                        alert('Wachtwoord is verplicht en moet minimaal 6 tekens bevatten');
+                        return;
+                    }
                     
-                    // Maak nieuwe account aan
+                    // Nieuwe gebruiker aanmaken (status wordt automatisch 'wachtend' door trigger)
                     const { data: authData, error: authError } = await window.supabase.auth.signUp({
                         email: email,
                         password: password
                     });
                     
                     if (authError) throw authError;
-                    
-                    // Herstel de oude sessie (blijf ingelogd als admin)
-                    if (huidigeSessie) {
-                        await window.supabase.auth.setSession(huidigeSessie);
-                    }
                     
                     if (authData.user) {
                         const { error: rolError } = await window.supabase
@@ -410,16 +537,18 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 is_chauffeur: isChauffeur,
                                 chauffeur_nummer: chauffeurNummer || null,
                                 chauffeur_telefoon: chauffeurTelefoon || null
+                                // status wordt automatisch 'wachtend' door trigger
                             }]);
                         
                         if (rolError) throw rolError;
-                        alert(`Gebruiker ${gebruikersnaam} aangemaakt!`);
+                        alert(`Gebruiker ${gebruikersnaam} aangemaakt! Status: wachtend op goedkeuring.`);
                     }
                 }
                 
                 userPopup.style.display = 'none';
                 laadGebruikers();
                 laadChauffeurs();
+                laadStatistieken();
                 
             } catch (err) {
                 alert('Fout: ' + err.message);
@@ -427,46 +556,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // Sluit popup
-    if (closeUserPopup) {
-        closeUserPopup.addEventListener('click', () => {
-            userPopup.style.display = 'none';
-        });
-    }
-    
     // Startpunt opslaan
     if (saveStartpuntBtn) {
         saveStartpuntBtn.addEventListener('click', () => {
-            localStorage.setItem('abbott_startpunt', JSON.stringify({ adres: startpuntInstelling.value }));
+            const startpunt = startpuntInstelling.value;
+            localStorage.setItem('abbott_startpunt', JSON.stringify({ adres: startpunt }));
             alert('Startpunt opgeslagen!');
         });
     }
     
-    // Tab functionaliteit
-    const tabButtons = document.querySelectorAll('.admin-tabs .tab-btn');
-    const tabs = document.querySelectorAll('.admin-tab');
-    
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.dataset.tab;
-            tabButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            tabs.forEach(tab => tab.classList.remove('active'));
-            
-            if (tabId === 'gebruikers') {
-                document.getElementById('tabGebruikers').classList.add('active');
-                laadGebruikers();
-            } else if (tabId === 'chauffeurs') {
-                document.getElementById('tabChauffeurs').classList.add('active');
-                laadChauffeurs();
-            } else if (tabId === 'instellingen') {
-                document.getElementById('tabInstellingen').classList.add('active');
-                laadStatistieken();
-            }
-        });
-    });
-    
-    // Zoek functies
+    // Zoek functionaliteit
     if (searchUserInput) {
         searchUserInput.addEventListener('input', (e) => {
             huidigeUserZoekterm = e.target.value;
@@ -479,6 +578,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             searchUserInput.value = '';
             huidigeUserZoekterm = '';
             laadGebruikers();
+            searchUserInput.focus();
         });
     }
     
@@ -494,24 +594,58 @@ document.addEventListener('DOMContentLoaded', async function() {
             searchChauffeurInput.value = '';
             huidigeChauffeurZoekterm = '';
             laadChauffeurs();
+            searchChauffeurInput.focus();
         });
     }
     
-    // Klik buiten popup sluiten
+    // Tab functionaliteit
+    const tabButtons = document.querySelectorAll('.admin-tabs .tab-btn');
+    const tabs = document.querySelectorAll('.admin-tab');
+    
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+            
+            tabButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            if (tabId === 'gebruikers') {
+                document.getElementById('tabGebruikers').classList.add('active');
+                laadGebruikers();
+            } else if (tabId === 'chauffeurs') {
+                document.getElementById('tabChauffeurs').classList.add('active');
+                laadChauffeurs();
+            } else if (tabId === 'instellingen') {
+                document.getElementById('tabInstellingen').classList.add('active');
+                laadStatistieken();
+            }
+        });
+    });
+    
+    // Popup sluiten
+    if (closeUserPopup) {
+        closeUserPopup.addEventListener('click', () => {
+            userPopup.style.display = 'none';
+        });
+    }
+    
     window.addEventListener('click', (e) => {
         if (e.target === userPopup) {
             userPopup.style.display = 'none';
         }
     });
     
-    // Start
+    // Initialiseer
     laadGebruikers();
     laadStatistieken();
     
-    const savedStartpunt = localStorage.getItem('abbott_startpunt');
-    if (savedStartpunt && startpuntInstelling) {
+    // Laad opgeslagen startpunt
+    const opgeslagenStartpunt = localStorage.getItem('abbott_startpunt');
+    if (opgeslagenStartpunt && startpuntInstelling) {
         try {
-            const parsed = JSON.parse(savedStartpunt);
+            const parsed = JSON.parse(opgeslagenStartpunt);
             startpuntInstelling.value = parsed.adres;
         } catch(e) {}
     }

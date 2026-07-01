@@ -2,9 +2,98 @@
 
 console.log('main.js geladen');
 
+// ===== PAGINA BEVEILIGING =====
+
+// Lijst van pagina's die beschermd moeten worden
+const BESCHERMDE_PAGINAS = [
+    'dashboard.html',
+    'adressen.html',
+    'planning.html',
+    'admin.html',
+    'modules.html',
+    'profiel.html',
+    'registraties.html',
+    'stock.html'
+];
+
+// Check of de huidige pagina beschermd is
+function isBeschermdePagina() {
+    const huidigePagina = window.location.pathname.split('/').pop();
+    return BESCHERMDE_PAGINAS.includes(huidigePagina);
+}
+
+// Redirect naar login als niet ingelogd
+async function checkPageAuth() {
+    if (!isBeschermdePagina()) return;
+    
+    if (typeof window.supabase === 'undefined') {
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    try {
+        const { data: { session } } = await window.supabase.auth.getSession();
+        
+        if (!session) {
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        // Check ook of de gebruiker is goedgekeurd
+        const { data: userData, error } = await window.supabase
+            .from('gebruikers_rollen')
+            .select('status')
+            .eq('user_id', session.user.id)
+            .single();
+        
+        if (error || !userData || userData.status !== 'goedgekeurd') {
+            await window.supabase.auth.signOut();
+            window.location.href = 'index.html';
+        }
+        
+    } catch (err) {
+        console.error('Auth check error:', err);
+        window.location.href = 'index.html';
+    }
+}
+
+// ===== NAVIGATIE FUNCTIES =====
+
+async function laadNavigatie() {
+    const placeholder = document.getElementById('navigatie-placeholder');
+    if (!placeholder) return;
+    
+    try {
+        const response = await fetch('includes/navigatie.html');
+        if (!response.ok) throw new Error('Navigatie kon niet geladen worden');
+        const html = await response.text();
+        placeholder.innerHTML = html;
+        
+        await filterNavigatieModules();
+        
+        const logoutBtn = document.getElementById('logoutBtnNav');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (window.supabase) await window.supabase.auth.signOut();
+                window.location.href = 'index.html';
+            });
+        }
+        
+        const adminLink = document.getElementById('adminLink');
+        if (adminLink) {
+            const isAdmin = await heeftModuleToegang('admin');
+            adminLink.style.display = isAdmin ? 'inline-block' : 'none';
+        }
+        
+    } catch (error) {
+        console.error('Fout bij laden navigatie:', error);
+        placeholder.innerHTML = '<nav style="background:#2c7da0; padding:10px; color:white;">Menu laden mislukt</nav>';
+    }
+}
+
 // ===== MODULE FUNCTIES =====
 
-// Check of een gebruiker toegang heeft tot een module
 async function heeftModuleToegang(moduleSleutel) {
     if (!window.supabase) return false;
     
@@ -12,7 +101,6 @@ async function heeftModuleToegang(moduleSleutel) {
         const { data: { user } } = await window.supabase.auth.getUser();
         if (!user) return false;
         
-        // Admin heeft altijd toegang tot alle modules
         const { data: rollen } = await window.supabase
             .from('gebruikers_rollen')
             .select('rol')
@@ -21,7 +109,6 @@ async function heeftModuleToegang(moduleSleutel) {
         
         if (rollen && rollen.rol === 'admin') return true;
         
-        // Check specifieke module rechten voor deze gebruiker
         const { data: recht, error } = await window.supabase
             .from('gebruikers_module_rechten')
             .select('actief')
@@ -34,12 +121,10 @@ async function heeftModuleToegang(moduleSleutel) {
             return false;
         }
         
-        // Als er een specifiek recht is ingesteld, gebruik die waarde
         if (recht) {
             return recht.actief === true;
         }
         
-        // Geen specifiek recht: gebruik standaard waarde uit modules tabel
         const { data: module, error: modError } = await window.supabase
             .from('modules')
             .select('standaard_aan')
@@ -59,31 +144,25 @@ async function heeftModuleToegang(moduleSleutel) {
     }
 }
 
-// Navigatie links verbergen op basis van modules
 async function filterNavigatieModules() {
     try {
         const navLinks = document.querySelectorAll('.nav-links a');
         for (const link of navLinks) {
             const href = link.getAttribute('href');
             if (!href) continue;
-            
-            // Dashboard en profiel zijn altijd zichtbaar
             if (href === 'dashboard.html' || href === 'profiel.html') continue;
-            
-            // Admin link speciaal behandelen (alleen voor admins)
             if (href === 'admin.html') {
                 const isAdmin = await heeftModuleToegang('admin');
                 link.style.display = isAdmin ? 'inline-block' : 'none';
                 continue;
             }
             
-            // Bepaal module sleutel op basis van href
             let moduleSleutel = '';
             if (href.includes('adressen')) moduleSleutel = 'adressen';
             else if (href.includes('planning')) moduleSleutel = 'planning';
             else if (href.includes('modules')) moduleSleutel = 'modules';
-            else if (href.includes('chauffeurs')) moduleSleutel = 'chauffeurs';
-            else if (href.includes('route-planner')) moduleSleutel = 'routeplanner';
+            else if (href.includes('registraties')) moduleSleutel = 'registraties';
+            else if (href.includes('stock')) moduleSleutel = 'stock';
             else continue;
             
             const heeftToegang = await heeftModuleToegang(moduleSleutel);
@@ -94,46 +173,8 @@ async function filterNavigatieModules() {
     }
 }
 
-// ===== NAVIGATIE FUNCTIES =====
-
-async function laadNavigatie() {
-    const placeholder = document.getElementById('navigatie-placeholder');
-    if (!placeholder) return;
-    
-    try {
-        const response = await fetch('includes/navigatie.html');
-        if (!response.ok) throw new Error('Navigatie kon niet geladen worden');
-        const html = await response.text();
-        placeholder.innerHTML = html;
-        
-        // Toon admin link op basis van module rechten
-        await filterNavigatieModules();
-        
-        const logoutBtn = document.getElementById('logoutBtnNav');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                if (window.supabase) await window.supabase.auth.signOut();
-                window.location.href = 'index.html';
-            });
-        }
-        
-        // Admin link zichtbaarheid (aanvullende check via class)
-        const adminLink = document.getElementById('adminLink');
-        if (adminLink) {
-            const isAdmin = await heeftModuleToegang('admin');
-            adminLink.style.display = isAdmin ? 'inline-block' : 'none';
-        }
-        
-    } catch (error) {
-        console.error('Fout bij laden navigatie:', error);
-        placeholder.innerHTML = '<nav style="background:#2c7da0; padding:10px; color:white;">Menu laden mislukt</nav>';
-    }
-}
-
 // ===== AUTH FUNCTIES =====
 
-// Check of gebruiker is ingelogd voor beveiligde pagina's
 async function checkAuth() {
     if (typeof window.supabase === 'undefined') {
         return false;
@@ -152,7 +193,6 @@ async function checkAuth() {
     }
 }
 
-// Huidige gebruiker ophalen
 async function getCurrentUser() {
     if (typeof window.supabase === 'undefined') return null;
     try {
@@ -164,7 +204,6 @@ async function getCurrentUser() {
     }
 }
 
-// Check of gebruiker admin is
 async function isAdmin() {
     if (typeof window.supabase === 'undefined') return false;
     try {
@@ -189,46 +228,18 @@ async function isAdmin() {
     }
 }
 
-// ===== DASHBOARD FUNCTIES =====
-
-// Laad dashboard statistieken (als die er zijn)
-async function laadDashboardStatistieken() {
-    if (!window.supabase) return;
-    
-    try {
-        // Aantal adressen
-        const { count: adresCount } = await window.supabase
-            .from('adressen')
-            .select('*', { count: 'exact', head: true });
-        
-        // Aantal planningen vandaag
-        const vandaag = new Date().toISOString().split('T')[0];
-        const { count: planningCount } = await window.supabase
-            .from('planningen')
-            .select('*', { count: 'exact', head: true })
-            .eq('datum', vandaag);
-        
-        // Update dashboard elementen als ze bestaan
-        const adresCountEl = document.getElementById('dashboardAdresCount');
-        const planningCountEl = document.getElementById('dashboardPlanningCount');
-        if (adresCountEl) adresCountEl.textContent = adresCount || 0;
-        if (planningCountEl) planningCountEl.textContent = planningCount || 0;
-        
-    } catch (err) {
-        console.error('Fout bij laden dashboard statistieken:', err);
-    }
-}
-
 // ===== INITIALISATIE =====
 
-// Laad navigatie als de DOM klaar is
-document.addEventListener('DOMContentLoaded', () => {
+// Controleer authenticatie bij het laden van de pagina
+document.addEventListener('DOMContentLoaded', function() {
+    checkPageAuth();
+    
     if (document.getElementById('navigatie-placeholder')) {
         laadNavigatie();
     }
 });
 
-// Als we op de dashboard pagina zijn, laad statistieken
+// Dashboard statistieken
 if (document.getElementById('dashboardAdresCount') || document.getElementById('dashboardPlanningCount')) {
     document.addEventListener('DOMContentLoaded', laadDashboardStatistieken);
 }
