@@ -975,8 +975,6 @@ const scrollBtn = document.getElementById('scrollBtn');
         const isAtTop = scrollY < 50;
         const isAtBottom = scrollY >= maxScroll - 50;
 
-        console.log('Scroll positie:', scrollY, 'Max:', maxScroll, 'Bovenaan:', isAtTop, 'Onderaan:', isAtBottom);
-
         if (isAtTop) {
             // Bovenaan: alleen naar beneden
             scrollBtn.innerHTML = '<span class="scroll-icon">▼</span>';
@@ -988,10 +986,10 @@ const scrollBtn = document.getElementById('scrollBtn');
             scrollBtn.title = 'Scroll naar boven';
             scrollBtn.className = 'scroll-btn scroll-up';
         } else {
-            // In het midden: beide richtingen
-            scrollBtn.innerHTML = '<span class="scroll-icon">▲▼</span>';
-            scrollBtn.title = 'Scroll naar boven of beneden';
-            scrollBtn.className = 'scroll-btn scroll-both';
+            // In het midden: naar beneden scrollen
+            scrollBtn.innerHTML = '<span class="scroll-icon">▼</span>';
+            scrollBtn.title = 'Scroll naar beneden';
+            scrollBtn.className = 'scroll-btn scroll-down';
         }
     }
 
@@ -1018,18 +1016,11 @@ const scrollBtn = document.getElementById('scrollBtn');
                 behavior: 'smooth'
             });
         } else {
-            // In het midden: scroll naar de dichtstbijzijnde kant
-            if (scrollY < maxScroll / 2) {
-                window.scrollTo({
-                    top: documentHeight,
-                    behavior: 'smooth'
-                });
-            } else {
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            }
+            // In het midden: scroll naar beneden
+            window.scrollTo({
+                top: documentHeight,
+                behavior: 'smooth'
+            });
         }
     });
 
