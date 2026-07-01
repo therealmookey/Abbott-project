@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM =====
+// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM & EDGE FUNCTION VERWIJDERING =====
 
 console.log('admin.js geladen');
 
@@ -71,7 +71,62 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
     
-    // Haal alle gebruikers op
+    // ===== GEBRUIKER VERWIJDEREN (VIA EDGE FUNCTION) =====
+    async function verwijderGebruiker(userId) {
+        if (userId === user.id) {
+            alert('Je kunt jezelf niet verwijderen!');
+            return;
+        }
+        
+        if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
+        
+        try {
+            // Haal de session token op
+            const { data: { session } } = await window.supabase.auth.getSession();
+            const token = session?.access_token;
+            
+            if (!token) {
+                alert('Je bent niet ingelogd. Log opnieuw in.');
+                return;
+            }
+            
+            // Roep de Edge Function aan
+            const response = await fetch(
+                'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/delete-user',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: userId })
+                }
+            );
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Er ging iets mis bij het verwijderen');
+            }
+            
+            if (result.success) {
+                alert('✅ Gebruiker volledig verwijderd!');
+            } else {
+                alert('⚠️ ' + (result.warning || 'Gebruiker gedeeltelijk verwijderd.'));
+            }
+            
+            // Herlaad de lijsten
+            laadGebruikers();
+            laadChauffeurs();
+            laadStatistieken();
+            
+        } catch (err) {
+            console.error('Fout bij verwijderen:', err);
+            alert('Fout bij verwijderen: ' + err.message);
+        }
+    }
+    
+    // ===== GEBRUIKERS LIJST LADEN =====
     async function laadGebruikers() {
         if (!gebruikersLijst) return;
         
@@ -134,10 +189,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 } else if (rol.status === 'geweigerd') {
                     statusDisplay = '❌ Geweigerd';
                 } else {
-                    statusDisplay = '✅ Goedgekeurd'; // Default voor bestaande gebruikers
+                    statusDisplay = '✅ Goedgekeurd';
                 }
                 
-                // E-mail kunnen we niet makkelijk ophalen via de client
+                // E-mail weergave
                 const emailDisplay = rol.user_id === user.id ? 'Jouw account' : rol.user_id.substring(0, 8) + '...@email';
                 
                 html += `
@@ -225,7 +280,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Laad chauffeurs
+    // ===== CHAUFFEURS LIJST LADEN =====
     async function laadChauffeurs() {
         if (!chauffeursLijst) return;
         
@@ -342,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Laad statistieken
+    // ===== STATISTIEKEN LADEN =====
     async function laadStatistieken() {
         try {
             const { count: adresCount } = await window.supabase
@@ -368,7 +423,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Gebruiker bewerken
+    // ===== GEBRUIKER BEWERKEN =====
     async function bewerkGebruiker(userId) {
         currentUserId = userId;
         userPopupTitle.textContent = 'Gebruiker bewerken';
@@ -404,33 +459,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // Gebruiker verwijderen
-    async function verwijderGebruiker(userId) {
-        if (userId === user.id) {
-            alert('Je kunt jezelf niet verwijderen!');
-            return;
-        }
-        
-        if (!confirm('Weet je zeker dat je deze gebruiker wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
-        
-        try {
-            const { error } = await window.supabase
-                .from('gebruikers_rollen')
-                .delete()
-                .eq('user_id', userId);
-            
-            if (error) throw error;
-            
-            alert('Gebruiker verwijderd');
-            laadGebruikers();
-            laadChauffeurs();
-            
-        } catch (err) {
-            alert('Fout bij verwijderen: ' + err.message);
-        }
-    }
-    
-    // Nieuwe gebruiker
+    // ===== NIEUWE GEBRUIKER =====
     if (addUserBtn) {
         addUserBtn.addEventListener('click', () => {
             currentUserId = null;
@@ -449,14 +478,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // Toon/verberg chauffeur velden
+    // ===== TOON/VERBERG CHAUFFEUR VELDEN =====
     if (userIsChauffeur) {
         userIsChauffeur.addEventListener('change', (e) => {
             chauffeurVelden.style.display = e.target.value === 'true' ? 'block' : 'none';
         });
     }
     
-    // Opslaan gebruiker
+    // ===== OPSLAAN GEBRUIKER =====
     if (saveUserBtn) {
         saveUserBtn.addEventListener('click', async () => {
             const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
@@ -483,17 +512,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                         chauffeur_telefoon: chauffeurTelefoon || null
                     };
                     
-                    // Als de gebruiker al goedgekeurd is, behoud status
-                    const { data: existing } = await window.supabase
-                        .from('gebruikers_rollen')
-                        .select('status')
-                        .eq('user_id', currentUserId)
-                        .single();
-                    
-                    if (existing && existing.status !== 'wachtend') {
-                        // Behoud bestaande status
-                    }
-                    
                     const { error } = await window.supabase
                         .from('gebruikers_rollen')
                         .update(updateData)
@@ -519,7 +537,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         return;
                     }
                     
-                    // Nieuwe gebruiker aanmaken (status wordt automatisch 'wachtend' door trigger)
+                    // Nieuwe gebruiker aanmaken
                     const { data: authData, error: authError } = await window.supabase.auth.signUp({
                         email: email,
                         password: password
@@ -537,7 +555,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 is_chauffeur: isChauffeur,
                                 chauffeur_nummer: chauffeurNummer || null,
                                 chauffeur_telefoon: chauffeurTelefoon || null
-                                // status wordt automatisch 'wachtend' door trigger
                             }]);
                         
                         if (rolError) throw rolError;
@@ -556,16 +573,23 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // Startpunt opslaan
+    // ===== SLUIT POPUP =====
+    if (closeUserPopup) {
+        closeUserPopup.addEventListener('click', () => {
+            userPopup.style.display = 'none';
+        });
+    }
+    
+    // ===== STARTPUNT OPSLAAN =====
     if (saveStartpuntBtn) {
         saveStartpuntBtn.addEventListener('click', () => {
             const startpunt = startpuntInstelling.value;
-            localStorage.setItem('abbott_startpunt', JSON.stringify({ adres: startpunt }));
+            localStorage.setItem('startpunt', JSON.stringify({ adres: startpunt }));
             alert('Startpunt opgeslagen!');
         });
     }
     
-    // Zoek functionaliteit
+    // ===== ZOEK FUNCTIONALITEIT =====
     if (searchUserInput) {
         searchUserInput.addEventListener('input', (e) => {
             huidigeUserZoekterm = e.target.value;
@@ -598,7 +622,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // Tab functionaliteit
+    // ===== TAB FUNCTIONALITEIT =====
     const tabButtons = document.querySelectorAll('.admin-tabs .tab-btn');
     const tabs = document.querySelectorAll('.admin-tab');
     
@@ -624,25 +648,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     });
     
-    // Popup sluiten
-    if (closeUserPopup) {
-        closeUserPopup.addEventListener('click', () => {
-            userPopup.style.display = 'none';
-        });
-    }
-    
+    // ===== KLIK BUITEN POPUP SLUITEN =====
     window.addEventListener('click', (e) => {
         if (e.target === userPopup) {
             userPopup.style.display = 'none';
         }
     });
     
-    // Initialiseer
+    // ===== INITIALISEER =====
     laadGebruikers();
     laadStatistieken();
     
     // Laad opgeslagen startpunt
-    const opgeslagenStartpunt = localStorage.getItem('abbott_startpunt');
+    const opgeslagenStartpunt = localStorage.getItem('startpunt');
     if (opgeslagenStartpunt && startpuntInstelling) {
         try {
             const parsed = JSON.parse(opgeslagenStartpunt);
