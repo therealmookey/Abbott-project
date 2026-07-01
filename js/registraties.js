@@ -31,14 +31,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const exportExcelBtn = document.getElementById('exportExcelBtn');
     const exportPdfBtn = document.getElementById('exportPdfBtn');
     
+    // Import DOM elementen
+    const importPopup = document.getElementById('importPopup');
+    const closeImportPopup = document.getElementById('closeImportPopup');
+    const confirmImportBtn = document.getElementById('confirmImportBtn');
+    const fileInput = document.getElementById('fileInput');
+    const importPreview = document.getElementById('importPreview');
+    const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+    const importExcelBtn = document.getElementById('importExcelBtn');
+    
     let currentRegistratieId = null;
     let adressen = [];
     let combinaties = [];
     let alleRegistraties = [];
+    let importData = [];
     
     // ===== LAAD DATA =====
     
-    // Laad adressen voor dropdown
     async function laadAdressen() {
         const { data, error } = await window.supabase
             .from('adressen')
@@ -64,10 +73,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Laad combinaties voor opstart dropdown
     async function laadCombinaties() {
         try {
-            // Haal alle combinatie items op
             const { data: comps, error: compError } = await window.supabase
                 .from('combinatie_componenten')
                 .select('combinatie_id');
@@ -76,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const combinatieIds = comps.map(c => c.combinatie_id);
             
-            // Haal de combinatie items op
             const { data, error } = await window.supabase
                 .from('stock_items')
                 .select('id, item_code, omschrijving, aantal')
@@ -104,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Toon/verberg velden op basis van type
     if (registratieType) {
         registratieType.addEventListener('change', (e) => {
             const type = e.target.value;
@@ -120,7 +125,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Laad registraties met filters
     async function laadRegistraties() {
         if (!registratiesLijst) return;
         
@@ -136,15 +140,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .order('registratiedatum', { ascending: false })
             .order('created_at', { ascending: false });
         
-        // Filter op datum
         if (filterDatumVanaf?.value) {
             query = query.gte('registratiedatum', filterDatumVanaf.value);
         }
         if (filterDatumTot?.value) {
             query = query.lte('registratiedatum', filterDatumTot.value);
         }
-        
-        // Filter op type
         if (typeFilter?.value && typeFilter.value !== 'alles') {
             query = query.eq('type', typeFilter.value);
         }
@@ -156,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Filter op ziekenhuisnaam (client-side)
         const zoekterm = searchZiekenhuis?.value?.trim();
         let filteredData = data || [];
         if (zoekterm) {
@@ -173,7 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Tabel weergave
         let html = `
             <div style="overflow-x: auto;">
             <table style="width:100%; border-collapse: collapse;" id="registratiesTabel">
@@ -384,7 +383,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ===== CRUD FUNCTIES =====
     
-    // Nieuwe registratie
     if (addRegistratieBtn) {
         addRegistratieBtn.addEventListener('click', async () => {
             currentRegistratieId = null;
@@ -407,7 +405,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Bewerk registratie
     async function bewerkRegistratie(id) {
         try {
             const { data, error } = await window.supabase
@@ -450,18 +447,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Verwijder registratie
     async function verwijderRegistratie(id) {
         if (!confirm('Weet je zeker dat je deze registratie wilt verwijderen?')) return;
         
         try {
-            // Check of het een opstart was, dan moeten we de voorraad herstellen
-            const { data } = await window.supabase
-                .from('ophaalregistraties')
-                .select('type, combinatie_id, opstart_aantal')
-                .eq('id', id)
-                .single();
-            
             const { error } = await window.supabase
                 .from('ophaalregistraties')
                 .delete()
@@ -477,7 +466,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Opslaan registratie
     if (saveRegistratieBtn) {
         saveRegistratieBtn.addEventListener('click', async () => {
             const type = registratieType?.value;
@@ -515,7 +503,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Controleer of de combinatie voldoende voorraad heeft
                 const { data: comboCheck } = await window.supabase
                     .from('stock_items')
                     .select('aantal')
@@ -546,7 +533,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         .insert([registratieData]);
                     error = result.error;
                     
-                    // Als het een nieuwe opstart is, haal de componenten uit de voorraad
                     if (!error && type === 'opstart' && registratieData.combinatie_id) {
                         await verwerkOpstartVoorraad(registratieData.combinatie_id, registratieData.opstart_aantal);
                     }
@@ -556,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 registratiePopup.style.display = 'none';
                 laadRegistraties();
-                laadCombinaties(); // Refresh combinatie dropdown
+                laadCombinaties();
                 
             } catch (err) {
                 alert('Fout bij opslaan: ' + err.message);
@@ -564,10 +550,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    if (closeRegistratiePopup) {
+        closeRegistratiePopup.addEventListener('click', () => {
+            registratiePopup.style.display = 'none';
+        });
+    }
+    
     // ===== OPSTART VOORRAAD FUNCTIE =====
     async function verwerkOpstartVoorraad(combinatieId, aantal) {
         try {
-            // Haal alle componenten van deze combinatie op
             const { data: comps, error: compError } = await window.supabase
                 .from('combinatie_componenten')
                 .select('*')
@@ -594,7 +585,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         .update({ aantal: Math.max(0, nieuwAantal) })
                         .eq('id', comp.component_id);
                     
-                    // Log waarschuwing als voorraad negatief zou worden
                     if (nieuwAantal < 0) {
                         console.warn(`Waarschuwing: ${compItem.omschrijving} heeft onvoldoende voorraad!`);
                     }
@@ -606,6 +596,310 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (err) {
             console.error('Fout bij verwerken opstart voorraad:', err);
         }
+    }
+    
+    // ===== EXCEL IMPORT FUNCTIES =====
+    
+    if (importExcelBtn) {
+        importExcelBtn.addEventListener('click', () => {
+            importPopup.style.display = 'flex';
+            fileInput.value = '';
+            importPreview.innerHTML = '<p>Selecteer een Excel bestand om te importeren.</p>';
+            importData = [];
+        });
+    }
+    
+    if (closeImportPopup) {
+        closeImportPopup.addEventListener('click', () => {
+            importPopup.style.display = 'none';
+        });
+    }
+    
+    if (downloadTemplateBtn) {
+        downloadTemplateBtn.addEventListener('click', () => {
+            const templateData = [
+                { Ziekenhuis: 'AZ Turnhout', Datum: '2024-01-15', Gewicht: 150.5, Type: 'ophaling', Opmerkingen: 'Eerste ophaling' },
+                { Ziekenhuis: 'Sint-Jozef Ziekenhuis', Datum: '2024-01-20', Gewicht: 200.0, Type: 'ophaling', Opmerkingen: '' },
+                { Ziekenhuis: 'Mariaziekenhuis', Datum: '2024-01-25', Gewicht: 0, Type: 'opstart', Opmerkingen: 'Opstart combinatie' }
+            ];
+            
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(templateData);
+            ws['!cols'] = [
+                { wch: 30 }, // Ziekenhuis
+                { wch: 15 }, // Datum
+                { wch: 12 }, // Gewicht
+                { wch: 12 }, // Type
+                { wch: 30 }  // Opmerkingen
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, 'Template');
+            XLSX.writeFile(wb, 'Import_Template.xlsx');
+        });
+    }
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            importPreview.innerHTML = '<p>Bezig met verwerken...</p>';
+            
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                
+                if (jsonData.length === 0) {
+                    importPreview.innerHTML = '<p class="error">Geen data gevonden in het bestand.</p>';
+                    return;
+                }
+                
+                const { data: adressenData } = await window.supabase
+                    .from('adressen')
+                    .select('id, instelling_naam');
+                
+                const adressenMap = {};
+                adressenData.forEach(a => {
+                    adressenMap[a.instelling_naam.toLowerCase().trim()] = a.id;
+                });
+                
+                let processedData = [];
+                let fouten = [];
+                
+                const kolommen = Object.keys(jsonData[0]);
+                const ziekenhuisKolom = kolommen.find(k => 
+                    k.toLowerCase().includes('ziekenhuis') || 
+                    k.toLowerCase().includes('naam') || 
+                    k.toLowerCase().includes('instelling') ||
+                    k.toLowerCase().includes('hospital')
+                );
+                const datumKolom = kolommen.find(k => 
+                    k.toLowerCase().includes('datum') || 
+                    k.toLowerCase().includes('date')
+                );
+                const gewichtKolom = kolommen.find(k => 
+                    k.toLowerCase().includes('gewicht') || 
+                    k.toLowerCase().includes('weight') ||
+                    k.toLowerCase().includes('kg')
+                );
+                const typeKolom = kolommen.find(k => 
+                    k.toLowerCase().includes('type')
+                );
+                const opmerkingKolom = kolommen.find(k => 
+                    k.toLowerCase().includes('opmerking') || 
+                    k.toLowerCase().includes('notitie') ||
+                    k.toLowerCase().includes('remark')
+                );
+                
+                for (let i = 0; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    const regelnummer = i + 2;
+                    
+                    let ziekenhuisNaam = '';
+                    if (ziekenhuisKolom) {
+                        ziekenhuisNaam = String(row[ziekenhuisKolom] || '').trim();
+                    }
+                    
+                    let datum = '';
+                    if (datumKolom) {
+                        const rawDatum = row[datumKolom];
+                        if (rawDatum) {
+                            if (typeof rawDatum === 'number') {
+                                const excelDate = new Date((rawDatum - 25569) * 86400 * 1000);
+                                datum = excelDate.toISOString().split('T')[0];
+                            } else {
+                                const parsed = new Date(rawDatum);
+                                if (!isNaN(parsed)) {
+                                    datum = parsed.toISOString().split('T')[0];
+                                } else {
+                                    const parts = String(rawDatum).split(/[-/.]/);
+                                    if (parts.length === 3) {
+                                        if (parts[0].length === 4) {
+                                            datum = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+                                        } else if (parts[2].length === 4) {
+                                            datum = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    let gewicht = null;
+                    if (gewichtKolom) {
+                        const val = parseFloat(row[gewichtKolom]);
+                        if (!isNaN(val)) {
+                            gewicht = val;
+                        }
+                    }
+                    
+                    let type = 'ophaling';
+                    if (typeKolom) {
+                        const val = String(row[typeKolom] || '').toLowerCase().trim();
+                        if (val.includes('opstart') || val === 'opstart') {
+                            type = 'opstart';
+                        }
+                    }
+                    
+                    let opmerkingen = '';
+                    if (opmerkingKolom) {
+                        opmerkingen = String(row[opmerkingKolom] || '').trim();
+                    }
+                    
+                    let isValid = true;
+                    let foutmelding = '';
+                    
+                    if (!ziekenhuisNaam) {
+                        isValid = false;
+                        foutmelding = 'Ziekenhuis ontbreekt';
+                    } else if (!adressenMap[ziekenhuisNaam.toLowerCase()]) {
+                        isValid = false;
+                        foutmelding = `Ziekenhuis "${ziekenhuisNaam}" niet gevonden in adressen`;
+                    }
+                    
+                    if (!datum) {
+                        isValid = false;
+                        foutmelding = foutmelding ? foutmelding + ', Datum ontbreekt of ongeldig' : 'Datum ontbreekt of ongeldig';
+                    }
+                    
+                    if (type === 'ophaling' && (gewicht === null || gewicht <= 0)) {
+                        isValid = false;
+                        foutmelding = foutmelding ? foutmelding + ', Gewicht ontbreekt' : 'Gewicht ontbreekt';
+                    }
+                    
+                    if (isValid) {
+                        processedData.push({
+                            ziekenhuis_naam: ziekenhuisNaam,
+                            ziekenhuis_id: adressenMap[ziekenhuisNaam.toLowerCase()],
+                            datum: datum,
+                            gewicht: gewicht,
+                            type: type,
+                            opmerkingen: opmerkingen,
+                            regel: regelnummer
+                        });
+                    } else {
+                        fouten.push({
+                            regel: regelnummer,
+                            fout: foutmelding,
+                            data: row
+                        });
+                    }
+                }
+                
+                let previewHtml = '';
+                
+                if (fouten.length > 0) {
+                    previewHtml += `<div class="import-fouten"><strong>⚠️ ${fouten.length} fout(en) gevonden:</strong><ul>`;
+                    fouten.forEach(f => {
+                        previewHtml += `<li><strong>Regel ${f.regel}:</strong> ${f.fout}</li>`;
+                    });
+                    previewHtml += `</ul></div>`;
+                }
+                
+                if (processedData.length > 0) {
+                    previewHtml += `<div class="import-succes"><strong>✅ ${processedData.length} geldige regel(s) gevonden:</strong></div>`;
+                    previewHtml += `<div style="max-height:200px;overflow-y:auto;font-size:0.85rem;">`;
+                    previewHtml += `<table style="width:100%;border-collapse:collapse;">`;
+                    previewHtml += `<thead><tr style="background:#f8f9fa;">`;
+                    previewHtml += `<th style="padding:4px 8px;">#</th>`;
+                    previewHtml += `<th style="padding:4px 8px;">Ziekenhuis</th>`;
+                    previewHtml += `<th style="padding:4px 8px;">Datum</th>`;
+                    previewHtml += `<th style="padding:4px 8px;">Gewicht</th>`;
+                    previewHtml += `<th style="padding:4px 8px;">Type</th>`;
+                    previewHtml += `</tr></thead><tbody>`;
+                    
+                    processedData.forEach((p, index) => {
+                        previewHtml += `<tr style="border-bottom:1px solid #e9ecef;">`;
+                        previewHtml += `<td style="padding:4px 8px;">${index + 1}</td>`;
+                        previewHtml += `<td style="padding:4px 8px;">${escapeHtml(p.ziekenhuis_naam)}</td>`;
+                        previewHtml += `<td style="padding:4px 8px;">${p.datum}</td>`;
+                        previewHtml += `<td style="padding:4px 8px;">${p.gewicht || '-'}</td>`;
+                        previewHtml += `<td style="padding:4px 8px;">${p.type}</td>`;
+                        previewHtml += `</tr>`;
+                    });
+                    
+                    previewHtml += `</tbody></table></div>`;
+                }
+                
+                if (processedData.length === 0 && fouten.length > 0) {
+                    previewHtml += `<p class="error">Geen geldige regels gevonden. Corrigeer de fouten en probeer opnieuw.</p>`;
+                }
+                
+                importData = processedData;
+                importPreview.innerHTML = previewHtml;
+                
+            } catch (err) {
+                console.error('Fout bij verwerken bestand:', err);
+                importPreview.innerHTML = `<p class="error">Fout bij verwerken: ${err.message}</p>`;
+            }
+        });
+    }
+    
+    if (confirmImportBtn) {
+        confirmImportBtn.addEventListener('click', async () => {
+            if (importData.length === 0) {
+                alert('Geen geldige data om te importeren.');
+                return;
+            }
+            
+            if (!confirm(`Weet je zeker dat je ${importData.length} registratie(s) wilt importeren?`)) {
+                return;
+            }
+            
+            let successCount = 0;
+            let errorCount = 0;
+            let errors = [];
+            
+            for (const item of importData) {
+                try {
+                    const registratieData = {
+                        ziekenhuis_id: item.ziekenhuis_id,
+                        registratiedatum: item.datum,
+                        type: item.type,
+                        opmerkingen: item.opmerkingen || null
+                    };
+                    
+                    if (item.type === 'ophaling') {
+                        registratieData.gewicht = item.gewicht;
+                        registratieData.combinatie_id = null;
+                        registratieData.opstart_aantal = null;
+                    } else if (item.type === 'opstart') {
+                        registratieData.gewicht = null;
+                        registratieData.combinatie_id = null;
+                        registratieData.opstart_aantal = 1;
+                    }
+                    
+                    const { error } = await window.supabase
+                        .from('ophaalregistraties')
+                        .insert([registratieData]);
+                    
+                    if (error) {
+                        errorCount++;
+                        errors.push(`Regel ${item.regel}: ${error.message}`);
+                    } else {
+                        successCount++;
+                    }
+                    
+                } catch (err) {
+                    errorCount++;
+                    errors.push(`Regel ${item.regel}: ${err.message}`);
+                }
+            }
+            
+            let message = `✅ ${successCount} registratie(s) succesvol geïmporteerd.`;
+            if (errorCount > 0) {
+                message += `\n\n❌ ${errorCount} registratie(s) mislukt:\n${errors.join('\n')}`;
+            }
+            
+            alert(message);
+            importPopup.style.display = 'none';
+            laadRegistraties();
+            
+            importData = [];
+            fileInput.value = '';
+        });
     }
     
     // ===== FILTERS =====
@@ -633,6 +927,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     window.addEventListener('click', (e) => {
         if (e.target === registratiePopup) registratiePopup.style.display = 'none';
+        if (e.target === importPopup) importPopup.style.display = 'none';
     });
     
     function escapeHtml(text) {
@@ -646,8 +941,9 @@ document.addEventListener('DOMContentLoaded', function() {
     laadRegistraties();
     laadCombinaties();
     
-});
-// ===== SCROLL FUNCTIE =====
+}); // Einde DOMContentLoaded
+
+// ===== SCROLL FUNCTIE (buiten DOMContentLoaded) =====
 
 const scrollBtn = document.getElementById('scrollBtn');
 
@@ -659,30 +955,33 @@ function updateScrollButton() {
     const documentHeight = document.documentElement.scrollHeight;
     const maxScroll = documentHeight - windowHeight;
     
-    // Check of we bovenaan, onderaan of in het midden zijn
     const isAtTop = scrollY < 100;
     const isAtBottom = scrollY >= maxScroll - 100;
     
     if (isAtTop) {
-        // Bovenaan: alleen naar beneden
         scrollBtn.innerHTML = '<span class="scroll-icon">▼</span>';
         scrollBtn.title = 'Scroll naar beneden';
         scrollBtn.className = 'scroll-btn scroll-down';
+        scrollBtn.style.display = 'flex';
     } else if (isAtBottom) {
-        // Onderaan: alleen naar boven
         scrollBtn.innerHTML = '<span class="scroll-icon">▲</span>';
         scrollBtn.title = 'Scroll naar boven';
         scrollBtn.className = 'scroll-btn scroll-up';
+        scrollBtn.style.display = 'flex';
     } else {
-        // Midden: beide knoppen (twee pijlen)
         scrollBtn.innerHTML = '<span class="scroll-icon">▲▼</span>';
         scrollBtn.title = 'Scroll naar boven of beneden';
         scrollBtn.className = 'scroll-btn scroll-both';
+        scrollBtn.style.display = 'flex';
     }
 }
 
 if (scrollBtn) {
-    scrollBtn.addEventListener('click', function() {
+    // Verwijder oude event listeners door clone te maken
+    const newScrollBtn = scrollBtn.cloneNode(true);
+    scrollBtn.parentNode.replaceChild(newScrollBtn, scrollBtn);
+    
+    newScrollBtn.addEventListener('click', function() {
         const scrollY = window.scrollY;
         const windowHeight = window.innerHeight;
         const documentHeight = document.documentElement.scrollHeight;
@@ -692,27 +991,22 @@ if (scrollBtn) {
         const isAtBottom = scrollY >= maxScroll - 100;
         
         if (isAtTop) {
-            // Scroll naar beneden
             window.scrollTo({
                 top: documentHeight,
                 behavior: 'smooth'
             });
         } else if (isAtBottom) {
-            // Scroll naar boven
             window.scrollTo({
                 top: 0,
                 behavior: 'smooth'
             });
         } else {
-            // In het midden: scroll naar de dichtstbijzijnde kant
             if (scrollY < maxScroll / 2) {
-                // Eerste helft: scroll naar beneden
                 window.scrollTo({
                     top: documentHeight,
                     behavior: 'smooth'
                 });
             } else {
-                // Tweede helft: scroll naar boven
                 window.scrollTo({
                     top: 0,
                     behavior: 'smooth'
@@ -721,7 +1015,6 @@ if (scrollBtn) {
         }
     });
     
-    // Update scroll button bij scroll events
     let scrollTimeout;
     window.addEventListener('scroll', function() {
         if (scrollTimeout) {
@@ -732,9 +1025,7 @@ if (scrollBtn) {
         });
     });
     
-    // Update ook bij resize
     window.addEventListener('resize', updateScrollButton);
     
-    // Initialiseer de knop
     setTimeout(updateScrollButton, 500);
 }
