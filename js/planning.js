@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Routeplanning Abbott - ${datumStr}</title>
+            <title>Routeplanning - ${datumStr}</title>
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body { 
@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <body>
             <div class="route-pdf" id="pdf-content">
                 <div class="header">
-                    <h1>🚚 ABBOTT ROUTEPLANNING</h1>
+                    <h1>🚚 Project ROUTEPLANNING</h1>
                     <h2>Routeoverzicht voor chauffeur</h2>
                     <div class="datum">📅 ${datumStr}</div>
                     <div class="chauffeur-info">👨‍✈️ Chauffeur: ${escapeHtml(chauffeurNaam)} ${chauffeurTel ? '📞 ' + escapeHtml(chauffeurTel) : ''}</div>
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 
                 <div class="footer">
-                    <div>Route gegenereerd via Abbott Platform</div>
+                    <div>Route gegenereerd via Platform</div>
                     <div class="generated">Gegenereerd op ${new Date().toLocaleString('nl-NL')}</div>
                 </div>
             </div>
@@ -879,7 +879,7 @@ function genereerWhatsAppVoorDatum(datum) {
     // Genereer WhatsApp bericht
     const datumObj = new Date(datum + 'T00:00:00');
     const datumStr = datumObj.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    let bericht = `🚚 *ABBOTT ROUTE PLANNING* 🚚\n\n`;
+    let bericht = `🚚 *ROUTE PLANNING* 🚚\n\n`;
     bericht += `📅 *Datum:* ${datumStr}\n`;
     bericht += `📍 *START & EINDE:* Schoonmansveld 48, 2870 Puurs\n\n`;
     bericht += `*📋 CIRCULAIRE ROUTE (${planningData.length} stops)*\n`;

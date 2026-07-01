@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </table>
                 
                 <div class="footer">
-                    Abbott Platform - Registraties overzicht
+                    Platform - Registraties overzicht
                 </div>
             </body>
             </html>
