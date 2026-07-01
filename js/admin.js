@@ -1,4 +1,4 @@
-// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM & SQL VERWIJDERING =====
+// ===== ADMIN FUNCTIES - MET GEBRUIKERSNAAM & SERVICE_ROLE KEY =====
 
 console.log('admin.js geladen');
 
@@ -58,6 +58,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     const saveStartpuntBtn = document.getElementById('saveStartpuntBtn');
     const startpuntInstelling = document.getElementById('startpuntInstelling');
     
+    // Service Role Key - VUL HIER JOUW KEY IN!
+    const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZHFjZ3Zpb3NzbXJ2bGdzaXFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTUwMTM4MCwiZXhwIjoyMDk3MDc3MzgwfQ.9bU82TwQuc5yViZPQfVAgyzCOTpVsPxfrhlDnL3rlqk';
+    const SUPABASE_URL = 'https://jcdqcgviossmrvlgsiqd.supabase.co';
+    
     let currentUserId = null;
     let alleGebruikers = [];
     let alleChauffeurs = [];
@@ -71,60 +75,63 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
     
-    // ===== GEBRUIKER VERWIJDEREN (VIA EDGE FUNCTION) =====
-async function verwijderGebruiker(userId) {
-    if (userId === user.id) {
-        alert('Je kunt jezelf niet verwijderen!');
-        return;
-    }
-    
-    if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
-    
-    try {
-        const { data: { session } } = await window.supabase.auth.getSession();
-        const token = session?.access_token;
-        
-        if (!token) {
-            alert('Je bent niet ingelogd. Log opnieuw in.');
+    // ===== GEBRUIKER VERWIJDEREN =====
+    async function verwijderGebruiker(userId) {
+        if (userId === user.id) {
+            alert('Je kunt jezelf niet verwijderen!');
             return;
         }
         
-        console.log('Verwijder gebruiker:', userId);
+        if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
         
-        const response = await fetch(
-            'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/delete-user',
-            {
-                method: 'POST',
+        try {
+            // Verwijder uit gebruikers_rollen met service_role key
+            const rollenResponse = await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen?user_id=eq.${userId}`, {
+                method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ user_id: userId })
+                    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                    'apikey': SERVICE_ROLE_KEY,
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            console.log('Rollen delete status:', rollenResponse.status);
+            
+            // Verwijder uit Auth
+            const authResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                    'apikey': SERVICE_ROLE_KEY,
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            console.log('Auth delete status:', authResponse.status);
+            
+            if (authResponse.status === 404) {
+                alert('✅ Gebruiker verwijderd uit rollen! (Auth gebruiker bestond niet meer)');
+                laadGebruikers();
+                laadChauffeurs();
+                laadStatistieken();
+                return;
             }
-        );
-        
-        const result = await response.json();
-        console.log('Response:', result);
-        
-        if (!response.ok) {
-            throw new Error(result.error || 'Er ging iets mis bij het verwijderen');
+            
+            if (!authResponse.ok) {
+                const errorText = await authResponse.text();
+                throw new Error(`Auth delete failed: ${authResponse.status} - ${errorText}`);
+            }
+            
+            alert('✅ Gebruiker volledig verwijderd uit rollen en auth!');
+            laadGebruikers();
+            laadChauffeurs();
+            laadStatistieken();
+            
+        } catch (err) {
+            console.error('Fout bij verwijderen:', err);
+            alert('Fout bij verwijderen: ' + err.message);
         }
-        
-        if (result.success) {
-            alert('✅ Gebruiker volledig verwijderd!\n\nHet account is uit zowel de rollen als de auth verwijderd.');
-        } else {
-            alert('⚠️ ' + (result.warning || 'Gebruiker gedeeltelijk verwijderd.'));
-        }
-        
-        laadGebruikers();
-        laadChauffeurs();
-        laadStatistieken();
-        
-    } catch (err) {
-        console.error('Fout bij verwijderen:', err);
-        alert('Fout bij verwijderen: ' + err.message);
     }
-}
     
     // ===== GEBRUIKERS LIJST LADEN =====
     async function laadGebruikers() {
@@ -485,7 +492,7 @@ async function verwijderGebruiker(userId) {
         });
     }
     
-    // ===== OPSLAAN GEBRUIKER =====
+    // ===== OPSLAAN GEBRUIKER (met service_role key) =====
     if (saveUserBtn) {
         saveUserBtn.addEventListener('click', async () => {
             const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
@@ -503,7 +510,7 @@ async function verwijderGebruiker(userId) {
             
             try {
                 if (currentUserId) {
-                    // Update bestaande gebruiker
+                    // Update bestaande gebruiker (via normale Supabase)
                     const updateData = {
                         gebruikersnaam: gebruikersnaam,
                         rol: rol,
@@ -522,7 +529,7 @@ async function verwijderGebruiker(userId) {
                     
                 } else {
                     // Controleer of gebruikersnaam uniek is
-                    const { data: bestaande, error: checkError } = await window.supabase
+                    const { data: bestaande } = await window.supabase
                         .from('gebruikers_rollen')
                         .select('gebruikersnaam')
                         .eq('gebruikersnaam', gebruikersnaam);
@@ -537,7 +544,7 @@ async function verwijderGebruiker(userId) {
                         return;
                     }
                     
-                    // Nieuwe gebruiker aanmaken
+                    // Maak account aan in Auth
                     const { data: authData, error: authError } = await window.supabase.auth.signUp({
                         email: email,
                         password: password
@@ -546,18 +553,31 @@ async function verwijderGebruiker(userId) {
                     if (authError) throw authError;
                     
                     if (authData.user) {
-                        const { error: rolError } = await window.supabase
-                            .from('gebruikers_rollen')
-                            .insert([{
+                        // Gebruik de service_role key om direct in de tabel te schrijven
+                        const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                                'apikey': SERVICE_ROLE_KEY,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=representation'
+                            },
+                            body: JSON.stringify({
                                 user_id: authData.user.id,
                                 gebruikersnaam: gebruikersnaam,
                                 rol: rol,
                                 is_chauffeur: isChauffeur,
                                 chauffeur_nummer: chauffeurNummer || null,
-                                chauffeur_telefoon: chauffeurTelefoon || null
-                            }]);
+                                chauffeur_telefoon: chauffeurTelefoon || null,
+                                status: 'wachtend'
+                            })
+                        });
                         
-                        if (rolError) throw rolError;
+                        if (!insertResponse.ok) {
+                            const errorText = await insertResponse.text();
+                            throw new Error(`Kon gebruiker niet toevoegen: ${errorText}`);
+                        }
+                        
                         alert(`Gebruiker ${gebruikersnaam} aangemaakt! Status: wachtend op goedkeuring.`);
                     }
                 }
@@ -568,6 +588,7 @@ async function verwijderGebruiker(userId) {
                 laadStatistieken();
                 
             } catch (err) {
+                console.error('Fout:', err);
                 alert('Fout: ' + err.message);
             }
         });
