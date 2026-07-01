@@ -492,107 +492,135 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // ===== OPSLAAN GEBRUIKER (met service_role key) =====
-    if (saveUserBtn) {
-        saveUserBtn.addEventListener('click', async () => {
-            const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
-            const email = document.getElementById('userEmail').value;
-            const password = document.getElementById('userPassword').value;
-            const rol = document.getElementById('userRol').value;
-            const isChauffeur = document.getElementById('userIsChauffeur').value === 'true';
-            const chauffeurNummer = document.getElementById('chauffeurNummer').value;
-            const chauffeurTelefoon = document.getElementById('chauffeurTelefoon').value;
-            
-            if (!gebruikersnaam) {
-                alert('Gebruikersnaam is verplicht');
-                return;
-            }
-            
-            try {
-                if (currentUserId) {
-                    // Update bestaande gebruiker (via normale Supabase)
-                    const updateData = {
-                        gebruikersnaam: gebruikersnaam,
-                        rol: rol,
-                        is_chauffeur: isChauffeur,
-                        chauffeur_nummer: chauffeurNummer || null,
-                        chauffeur_telefoon: chauffeurTelefoon || null
-                    };
-                    
-                    const { error } = await window.supabase
-                        .from('gebruikers_rollen')
-                        .update(updateData)
-                        .eq('user_id', currentUserId);
-                    
-                    if (error) throw error;
-                    alert('Gebruiker bijgewerkt');
-                    
-                } else {
-                    // Controleer of gebruikersnaam uniek is
-                    const { data: bestaande } = await window.supabase
-                        .from('gebruikers_rollen')
-                        .select('gebruikersnaam')
-                        .eq('gebruikersnaam', gebruikersnaam);
-                    
-                    if (bestaande && bestaande.length > 0) {
-                        alert('Deze gebruikersnaam is al in gebruik');
-                        return;
-                    }
-                    
-                    if (!password || password.length < 6) {
-                        alert('Wachtwoord is verplicht en moet minimaal 6 tekens bevatten');
-                        return;
-                    }
-                    
-                    // Maak account aan in Auth
-                    const { data: authData, error: authError } = await window.supabase.auth.signUp({
-                        email: email,
-                        password: password
-                    });
-                    
-                    if (authError) throw authError;
-                    
-                    if (authData.user) {
-                        // Gebruik de service_role key om direct in de tabel te schrijven
-                        const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                                'apikey': SERVICE_ROLE_KEY,
-                                'Content-Type': 'application/json',
-                                'Prefer': 'return=representation'
-                            },
-                            body: JSON.stringify({
-                                user_id: authData.user.id,
-                                gebruikersnaam: gebruikersnaam,
-                                rol: rol,
-                                is_chauffeur: isChauffeur,
-                                chauffeur_nummer: chauffeurNummer || null,
-                                chauffeur_telefoon: chauffeurTelefoon || null,
-                                status: 'wachtend'
-                            })
-                        });
-                        
-                        if (!insertResponse.ok) {
-                            const errorText = await insertResponse.text();
-                            throw new Error(`Kon gebruiker niet toevoegen: ${errorText}`);
-                        }
-                        
-                        alert(`Gebruiker ${gebruikersnaam} aangemaakt! Status: wachtend op goedkeuring.`);
-                    }
+    // ===== OPSLAAN GEBRUIKER (met RLS bypass) =====
+if (saveUserBtn) {
+    saveUserBtn.addEventListener('click', async () => {
+        const gebruikersnaam = document.getElementById('userGebruikersnaam').value;
+        const email = document.getElementById('userEmail').value;
+        const password = document.getElementById('userPassword').value;
+        const rol = document.getElementById('userRol').value;
+        const isChauffeur = document.getElementById('userIsChauffeur').value === 'true';
+        const chauffeurNummer = document.getElementById('chauffeurNummer').value;
+        const chauffeurTelefoon = document.getElementById('chauffeurTelefoon').value;
+        
+        if (!gebruikersnaam) {
+            alert('Gebruikersnaam is verplicht');
+            return;
+        }
+        
+        try {
+            if (currentUserId) {
+                // Update bestaande gebruiker (via normale Supabase)
+                const updateData = {
+                    gebruikersnaam: gebruikersnaam,
+                    rol: rol,
+                    is_chauffeur: isChauffeur,
+                    chauffeur_nummer: chauffeurNummer || null,
+                    chauffeur_telefoon: chauffeurTelefoon || null
+                };
+                
+                const { error } = await window.supabase
+                    .from('gebruikers_rollen')
+                    .update(updateData)
+                    .eq('user_id', currentUserId);
+                
+                if (error) throw error;
+                alert('Gebruiker bijgewerkt');
+                
+            } else {
+                // Controleer of gebruikersnaam uniek is
+                const { data: bestaande } = await window.supabase
+                    .from('gebruikers_rollen')
+                    .select('gebruikersnaam')
+                    .eq('gebruikersnaam', gebruikersnaam);
+                
+                if (bestaande && bestaande.length > 0) {
+                    alert('Deze gebruikersnaam is al in gebruik');
+                    return;
                 }
                 
-                userPopup.style.display = 'none';
-                laadGebruikers();
-                laadChauffeurs();
-                laadStatistieken();
+                if (!password || password.length < 6) {
+                    alert('Wachtwoord is verplicht en moet minimaal 6 tekens bevatten');
+                    return;
+                }
                 
-            } catch (err) {
-                console.error('Fout:', err);
-                alert('Fout: ' + err.message);
+                // Maak account aan in Auth
+                const { data: authData, error: authError } = await window.supabase.auth.signUp({
+                    email: email,
+                    password: password
+                });
+                
+                if (authError) throw authError;
+                
+                if (authData.user) {
+                    // STAP 1: Zet RLS tijdelijk UIT
+                    await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                            'apikey': SERVICE_ROLE_KEY,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify({
+                            'row_level_security': false
+                        })
+                    });
+                    
+                    // STAP 2: Voeg de gebruiker toe
+                    const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                            'apikey': SERVICE_ROLE_KEY,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify({
+                            user_id: authData.user.id,
+                            gebruikersnaam: gebruikersnaam,
+                            rol: rol,
+                            is_chauffeur: isChauffeur,
+                            chauffeur_nummer: chauffeurNummer || null,
+                            chauffeur_telefoon: chauffeurTelefoon || null,
+                            status: 'wachtend'
+                        })
+                    });
+                    
+                    // STAP 3: Zet RLS weer AAN
+                    await fetch(`${SUPABASE_URL}/rest/v1/gebruikers_rollen`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                            'apikey': SERVICE_ROLE_KEY,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify({
+                            'row_level_security': true
+                        })
+                    });
+                    
+                    if (!insertResponse.ok) {
+                        const errorText = await insertResponse.text();
+                        throw new Error(`Kon gebruiker niet toevoegen: ${errorText}`);
+                    }
+                    
+                    alert(`Gebruiker ${gebruikersnaam} aangemaakt! Status: wachtend op goedkeuring.`);
+                }
             }
-        });
-    }
+            
+            userPopup.style.display = 'none';
+            laadGebruikers();
+            laadChauffeurs();
+            laadStatistieken();
+            
+        } catch (err) {
+            console.error('Fout:', err);
+            alert('Fout: ' + err.message);
+        }
+    });
+}
     
     // ===== SLUIT POPUP =====
     if (closeUserPopup) {
