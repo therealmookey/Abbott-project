@@ -71,36 +71,60 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
     
-    // ===== GEBRUIKER VERWIJDEREN (VIA SQL FUNCTIE) =====
-    async function verwijderGebruiker(userId) {
-        if (userId === user.id) {
-            alert('Je kunt jezelf niet verwijderen!');
+    // ===== GEBRUIKER VERWIJDEREN (VIA EDGE FUNCTION) =====
+async function verwijderGebruiker(userId) {
+    if (userId === user.id) {
+        alert('Je kunt jezelf niet verwijderen!');
+        return;
+    }
+    
+    if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
+    
+    try {
+        const { data: { session } } = await window.supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        if (!token) {
+            alert('Je bent niet ingelogd. Log opnieuw in.');
             return;
         }
         
-        if (!confirm('Weet je zeker dat je deze gebruiker volledig wilt verwijderen?\n\nLet op: Het Auth account moet handmatig verwijderd worden via:\nSupabase Dashboard → Authentication → Users')) return;
+        console.log('Verwijder gebruiker:', userId);
         
-        try {
-            // Roep de SQL functie aan via Supabase RPC
-            const { data, error } = await window.supabase
-                .rpc('delete_user_by_id', { user_id_input: userId });
-            
-            if (error) throw error;
-            
-            if (data && data.success) {
-                alert('✅ Gebruiker verwijderd uit rollen!\n\nVerwijder nu het Auth account handmatig via:\nSupabase Dashboard → Authentication → Users');
-                laadGebruikers();
-                laadChauffeurs();
-                laadStatistieken();
-            } else {
-                throw new Error(data?.error || 'Er ging iets mis');
+        const response = await fetch(
+            'https://jcdqcgviossmrvlgsiqd.supabase.co/functions/v1/delete-user',
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: userId })
             }
-            
-        } catch (err) {
-            console.error('Fout bij verwijderen:', err);
-            alert('Fout bij verwijderen: ' + err.message);
+        );
+        
+        const result = await response.json();
+        console.log('Response:', result);
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Er ging iets mis bij het verwijderen');
         }
+        
+        if (result.success) {
+            alert('✅ Gebruiker volledig verwijderd!\n\nHet account is uit zowel de rollen als de auth verwijderd.');
+        } else {
+            alert('⚠️ ' + (result.warning || 'Gebruiker gedeeltelijk verwijderd.'));
+        }
+        
+        laadGebruikers();
+        laadChauffeurs();
+        laadStatistieken();
+        
+    } catch (err) {
+        console.error('Fout bij verwijderen:', err);
+        alert('Fout bij verwijderen: ' + err.message);
     }
+}
     
     // ===== GEBRUIKERS LIJST LADEN =====
     async function laadGebruikers() {
